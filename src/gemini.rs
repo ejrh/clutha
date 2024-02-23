@@ -1,3 +1,4 @@
+use reqwest::StatusCode;
 use serde_json::{json, Value};
 
 const API_KEY: &str = "";
@@ -8,6 +9,7 @@ const BASE_URL: &str = "https://generativelanguage.googleapis.com/v1/models/gemi
 pub enum Error {
     ReqwestError(reqwest::Error),
     SerdeJsonError(serde_json::Error),
+    BadHttpStatus(StatusCode),
     BadResponse,
 }
 
@@ -59,10 +61,16 @@ pub(crate) async fn generate_content(prompt: &str) -> Result<String, Error> {
         ]
     });
 
-    let text = client.post(full_url)
+    let response = client.post(full_url)
         .body(payload.to_string())
         .send()
-        .await?.text().await?;
+        .await?;
+    let status = response.status();
+    let text = response.text().await?;
+
+    if !status.is_success() {
+        return Err(Error::BadHttpStatus(status))
+    }
 
     let value: Value = serde_json::from_str(&text)?;
     let result = parse_response(&value)?;
