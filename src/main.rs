@@ -1,3 +1,4 @@
+mod commands;
 mod discord;
 mod gemini;
 
