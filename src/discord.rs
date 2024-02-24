@@ -12,6 +12,7 @@ use serenity::model::gateway::Ready;
 use serenity::prelude::*;
 
 use crate::commands::*;
+use crate::dialogue::{Dialogue, handle_dialogue};
 
 struct Handler;
 
@@ -21,10 +22,26 @@ impl TypeMapKey for ShardManagerContainer {
     type Value = Arc<ShardManager>;
 }
 
+pub(crate) struct DialogueContainer(Arc<Dialogue>);
+
+impl TypeMapKey for DialogueContainer {
+    type Value = Dialogue;
+}
+
 #[async_trait]
 impl EventHandler for Handler {
-    async fn message(&self, context: Context, msg: Message) {
+    async fn message(&self, ctx: Context, msg: Message) {
+        let trimmed = msg.content.trim_start();
+        if trimmed.starts_with('~') {
+            return
+        }
 
+        match handle_dialogue(&ctx, &msg).await {
+            Ok(_) => (),
+            Err(why) => {
+                println!("Could not handle dialogue: {:?}", why);
+            },
+        }
     }
 
     async fn ready(&self, _: Context, ready: Ready) {
@@ -57,7 +74,7 @@ pub(crate) async fn create_framework(token: &str) -> StandardFramework {
     framework
 }
 
-pub(crate) async fn say_hello(token: &str) -> Result<(), serenity::Error> {
+pub(crate) async fn run_bot(gemini_api_key: &str, token: &str) -> Result<(), serenity::Error> {
     let framework = create_framework(token).await;
 
     let intents = GatewayIntents::GUILD_MESSAGES
@@ -72,6 +89,7 @@ pub(crate) async fn say_hello(token: &str) -> Result<(), serenity::Error> {
     {
         let mut data = client.data.write().await;
         data.insert::<ShardManagerContainer>(Arc::clone(&client.shard_manager));
+        data.insert::<DialogueContainer>(Dialogue::new(gemini_api_key));
     }
 
     client.start().await?;

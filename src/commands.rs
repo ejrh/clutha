@@ -10,14 +10,14 @@ use crate::discord::ShardManagerContainer;
 async fn version(ctx: &Context, msg: &Message) -> CommandResult {
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
-    msg.channel_id.say(&ctx.http, &format!("Clutha version {VERSION}")).await?;
+    msg.channel_id.say(&ctx, &format!("Clutha version {VERSION}")).await?;
 
     Ok(())
 }
 
 #[command]
 async fn shutdown(ctx: &Context, msg: &Message) -> CommandResult {
-    msg.channel_id.say(&ctx.http, "Shutting down").await?;
+    msg.channel_id.say(&ctx, "Shutting down").await?;
 
     let data = ctx.data.read().await;
     if let Some(shard_manager) = data.get::<ShardManagerContainer>() {
@@ -39,7 +39,7 @@ async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
         .push(" channel")
         .build();
 
-    msg.channel_id.say(&ctx.http, &response).await?;
+    msg.channel_id.say(&ctx, &response).await?;
 
     Ok(())
 }
