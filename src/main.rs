@@ -1,9 +1,12 @@
 mod gemini;
 
 fn main() {
+    println!("Clutha");
+
+    let api_key = std::env::var("GEMINI_KEY").unwrap();
+
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(async {
-        println!("hello");
-        println!("{}", gemini::generate_content("Hello Clutha").await.unwrap());
+        println!("{}", gemini::generate_content(&api_key, "Hello Clutha").await.unwrap());
     });
 }

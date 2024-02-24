@@ -1,8 +1,6 @@
 use reqwest::StatusCode;
 use serde_json::{json, Value};
 
-const API_KEY: &str = "";
-
 const BASE_URL: &str = "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent";
 
 #[derive(Debug)]
@@ -46,10 +44,10 @@ struct Response {
     // prompt feedback; safety ratings
 }
 
-pub(crate) async fn generate_content(prompt: &str) -> Result<String, Error> {
+pub(crate) async fn generate_content(api_key: &str, prompt: &str) -> Result<String, Error> {
     let client = reqwest::Client::new();
 
-    let full_url = format!("{}?key={}", BASE_URL, API_KEY);
+    let full_url = format!("{}?key={}", BASE_URL, api_key);
 
     let payload = json!({
         "contents": [
