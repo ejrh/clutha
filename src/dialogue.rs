@@ -77,6 +77,21 @@ pub(crate) async fn handle_dialogue(ctx: &Context, msg: &Message) -> CommandResu
 
     println!("### {}", text);
 
+    // Release the lock
+    drop(data);
+
+    do_ai_response(ctx, msg).await?;
+
+    Ok(())
+}
+
+async fn do_ai_response(ctx: &Context, msg: &Message) -> CommandResult {
+    let mut data = ctx.data.write().await;
+    let Some(dialogue) = data.get_mut::<DialogueContainer>()
+        else { return Ok(()) };
+
+    let typing = msg.channel_id.start_typing(&ctx.http);
+
     let prompt = dialogue.assemble_prompt();
     let result = generate_content(&dialogue.api_key, prompt).await?;
 
@@ -85,6 +100,8 @@ pub(crate) async fn handle_dialogue(ctx: &Context, msg: &Message) -> CommandResu
     println!(">>> {}\n", result);
 
     msg.channel_id.say(&ctx, result).await?;
+
+    typing.stop();
 
     Ok(())
 }
