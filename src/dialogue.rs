@@ -1,12 +1,18 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
+use serde_json::Value;
 use serenity::all::{Context, Message};
 use serenity::framework::standard::CommandResult;
 use crate::discord::DialogueContainer;
 use crate::gemini::generate_content;
 
+pub(crate) struct Part {
+    role: String,
+    text: String,
+}
+
 pub(crate) struct Dialogue {
     api_key: String,
-    parts: VecDeque<String>,
+    parts: VecDeque<Part>,
     total_len: u64,
     max_len: u64
 }
@@ -23,36 +29,36 @@ impl Dialogue {
         }
     }
 
-    pub(crate) fn push(&mut self, part: &str) {
-        self.total_len += part_len(part);
-        self.parts.push_back(part.to_string());
+    pub(crate) fn push(&mut self, role: &str, text: &str) {
+        let part = Part { role: role.to_string(), text: text.to_string() };
+        self.total_len += part.len();
+        self.parts.push_back(part);
         self.truncate_to_size();
-        println!("pushed to {}", self.total_len);
     }
 
     fn truncate_to_size(&mut self) {
         while self.total_len > self.max_len {
-            let Some(popped_part) = self.parts.pop_front()
+            let Some(part) = self.parts.pop_front()
                 else { break };
-            self.total_len -= part_len(&popped_part);
-            println!("popped to {}", self.total_len);
+            self.total_len -= part.len();
         }
     }
 
-    pub(crate) fn assemble(&self) -> String {
-        let mut result = String::new();
+    pub(crate) fn assemble_prompt(&self) -> Vec<(String, String)> {
+        let mut prompt = Vec::new();
         for part in &self.parts {
-            result.push_str(part);
-            result.push('\n');
+            prompt.push((part.role.clone(), part.text.clone()));
         }
-        result
+        prompt
     }
 }
 
-fn part_len(part: &str) -> u64 {
-    let part = part.trim();
-    let words = part.split(' ').collect::<Vec<_>>();
-    words.len() as u64
+impl Part {
+    fn len(&self) -> u64 {
+        let text = self.text.trim();
+        let words = text.split(' ').collect::<Vec<_>>();
+        words.len() as u64
+    }
 }
 
 pub(crate) async fn handle_dialogue(ctx: &Context, msg: &Message) -> CommandResult {
@@ -67,12 +73,14 @@ pub(crate) async fn handle_dialogue(ctx: &Context, msg: &Message) -> CommandResu
     if user_name == "Clutha" { return Ok(()) }
 
     let text = &msg.content;
-    dialogue.push(text);
+    dialogue.push("user", text);
 
     println!("### {}", text);
 
-    let prompt = dialogue.assemble();
-    let result = generate_content(&dialogue.api_key, &prompt).await?;
+    let prompt = dialogue.assemble_prompt();
+    let result = generate_content(&dialogue.api_key, prompt).await?;
+
+    dialogue.push("model", &result);
 
     println!(">>> {}\n", result);
 
@@ -89,12 +97,13 @@ mod test {
     fn dialogue_len_and_truncation() {
         let mut d = Dialogue::new("mock key");
         let big_str = "test ".repeat(400);
-        assert_eq!(400, part_len(&big_str));
-        d.push(&big_str.clone());
+        let part = Part { role: "t".to_string(), text: big_str.clone() };
+        assert_eq!(400, part.len());
+        d.push("t", &big_str.clone());
         assert_eq!(400, d.total_len);
-        d.push(&big_str.clone());
+        d.push("t", &big_str.clone());
         assert_eq!(800, d.total_len);
-        d.push(&big_str.clone());
+        d.push("t", &big_str.clone());
         assert_eq!(800, d.total_len);
     }
 }
