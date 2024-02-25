@@ -10,9 +10,9 @@ use serenity::http::Http;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
+use crate::bot::Bot;
 
 use crate::commands::*;
-use crate::dialogue::{Dialogue, handle_dialogue};
 
 struct Handler;
 
@@ -22,10 +22,10 @@ impl TypeMapKey for ShardManagerContainer {
     type Value = Arc<ShardManager>;
 }
 
-pub(crate) struct DialogueContainer(Arc<Dialogue>);
+pub(crate) struct BotContainer(Arc<Bot>);
 
-impl TypeMapKey for DialogueContainer {
-    type Value = Dialogue;
+impl TypeMapKey for BotContainer {
+    type Value = Bot;
 }
 
 #[async_trait]
@@ -36,7 +36,14 @@ impl EventHandler for Handler {
             return
         }
 
-        match handle_dialogue(&ctx, &msg).await {
+        let mut data = ctx.data.write().await;
+        let Some(bot) = data.get_mut::<BotContainer>()
+        else {
+            println!("Couldn't get bot object!");
+            return
+        };
+
+        match bot.handle_dialogue(&ctx, &msg).await {
             Ok(_) => (),
             Err(why) => {
                 println!("Could not handle dialogue: {:?}", why);
@@ -74,7 +81,7 @@ pub(crate) async fn create_framework(token: &str) -> StandardFramework {
     framework
 }
 
-pub(crate) async fn run_bot(gemini_api_key: &str, token: &str) -> Result<(), serenity::Error> {
+pub(crate) async fn run_bot(bot: Bot, token: &str) -> Result<(), serenity::Error> {
     let framework = create_framework(token).await;
 
     let intents = GatewayIntents::GUILD_MESSAGES
@@ -89,7 +96,7 @@ pub(crate) async fn run_bot(gemini_api_key: &str, token: &str) -> Result<(), ser
     {
         let mut data = client.data.write().await;
         data.insert::<ShardManagerContainer>(Arc::clone(&client.shard_manager));
-        data.insert::<DialogueContainer>(Dialogue::new(gemini_api_key));
+        data.insert::<BotContainer>(bot);
     }
 
     client.start().await?;

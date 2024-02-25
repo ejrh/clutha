@@ -56,33 +56,43 @@ struct Response {
     // prompt feedback; safety ratings
 }
 
-pub(crate) async fn generate_content(api_key: &str, prompt: Vec<(String, String)>) -> Result<String, Error> {
-    let client = reqwest::Client::new();
+pub struct Gemini {
+    api_key: String,
+}
 
-    let full_url = format!("{}?key={}", BASE_URL, api_key);
-
-    let request = build_request(prompt);
-
-    let response = client.post(full_url)
-        .body(request.to_string())
-        .send()
-        .await?;
-    let status = response.status();
-    let text = response.text().await?;
-
-    if !status.is_success() {
-        return Err(Error::HttpStatus(status))
+impl Gemini {
+    pub(crate) fn new(api_key: &str) -> Self {
+        Gemini { api_key: api_key.to_string() }
     }
 
-    let value: Value = serde_json::from_str(&text)?;
-    let Ok(result) = parse_response(&value) else {
-        println!("Bad reponse JSON: {}", text);
-        return Err(Error::BadResponse)
-    };
+    pub(crate) async fn generate_content(&self, prompt: Vec<(String, String)>) -> Result<String, Error> {
+        let client = reqwest::Client::new();
 
-    let text = result.candidates[0].content.parts[0].text.clone();
+        let full_url = format!("{}?key={}", BASE_URL, self.api_key);
 
-    Ok(text)
+        let request = build_request(prompt);
+
+        let response = client.post(full_url)
+            .body(request.to_string())
+            .send()
+            .await?;
+        let status = response.status();
+        let text = response.text().await?;
+
+        if !status.is_success() {
+            return Err(Error::HttpStatus(status))
+        }
+
+        let value: Value = serde_json::from_str(&text)?;
+        let Ok(result) = parse_response(&value) else {
+            println!("Bad response JSON: {}", text);
+            return Err(Error::BadResponse)
+        };
+
+        let text = result.candidates[0].content.parts[0].text.clone();
+
+        Ok(text)
+    }
 }
 
 fn build_request(prompt: Vec<(String, String)>) -> Value {
