@@ -4,7 +4,7 @@ use serenity::framework::standard::macros::command;
 use serenity::model::prelude::Message;
 use serenity::utils::MessageBuilder;
 
-use crate::discord::ShardManagerContainer;
+use crate::discord::{BotContainer, ShardManagerContainer};
 
 #[command]
 async fn version(ctx: &Context, msg: &Message) -> CommandResult {
@@ -40,6 +40,22 @@ async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
         .build();
 
     msg.channel_id.say(&ctx, &response).await?;
+
+    Ok(())
+}
+
+#[command]
+async fn reset(ctx: &Context, msg: &Message) -> CommandResult {
+    let mut data = ctx.data.write().await;
+    let Some(bot) = data.get_mut::<BotContainer>()
+    else {
+        println!("Couldn't get bot object!");
+        return Ok(())
+    };
+
+    bot.dialogue.reset();
+
+    msg.channel_id.say(&ctx, "Dialogue reset").await?;
 
     Ok(())
 }

@@ -57,7 +57,7 @@ impl EventHandler for Handler {
 }
 
 #[group]
-#[commands(ping, version, shutdown)]
+#[commands(ping, version, shutdown, reset)]
 struct General;
 
 pub(crate) async fn create_framework(token: &str) -> StandardFramework {

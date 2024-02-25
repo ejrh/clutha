@@ -45,6 +45,10 @@ impl Dialogue {
         }
         prompt
     }
+
+    pub(crate) fn reset(&mut self) {
+        self.parts.clear();
+    }
 }
 
 impl Part {
