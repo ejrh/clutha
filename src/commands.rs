@@ -1,7 +1,10 @@
+use std::collections::HashSet;
+
 use serenity::client::Context;
-use serenity::framework::standard::CommandResult;
-use serenity::framework::standard::macros::command;
-use serenity::model::prelude::Message;
+use serenity::framework::standard::help_commands;
+use serenity::framework::standard::{Args, CommandGroup, CommandResult, HelpOptions};
+use serenity::framework::standard::macros::{command, group, help};
+use serenity::model::prelude::{Message, UserId};
 use serenity::utils::MessageBuilder;
 
 use crate::discord::{BotContainer, ShardManagerContainer};
@@ -59,3 +62,20 @@ async fn reset(ctx: &Context, msg: &Message) -> CommandResult {
 
     Ok(())
 }
+
+#[help]
+async fn my_help(
+    context: &Context,
+    msg: &Message,
+    args: Args,
+    help_options: &'static HelpOptions,
+    groups: &[&'static CommandGroup],
+    owners: HashSet<UserId>,
+) -> CommandResult {
+    let _ = help_commands::with_embeds(context, msg, args, help_options, groups, owners).await;
+    Ok(())
+}
+
+#[group]
+#[commands(ping, version, shutdown, reset)]
+struct General;

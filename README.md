@@ -37,11 +37,11 @@ The main intention of Clutha is to provide AI chat for the purposes of:
 Clutha currently uses Google Gemini for AI functionality.
 
 Commands
----
-
+--- 
+  * `~help` Get help on the available commands
   * `~version` Display the version information
   * `~shutdown` Shut down the Clutha application, signing off from all Discord servers
-  * `~ping` Very that the application is running and responsive.
+  * `~ping` Verify that the application is running and responsive.
 
 Caveats and disclaimers
 ---

@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use serenity::async_trait;
-use serenity::framework::standard::macros::group;
 use serenity::framework::standard::Configuration;
 use serenity::framework::StandardFramework;
 use serenity::gateway::ShardManager;
@@ -10,8 +9,8 @@ use serenity::http::Http;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
-use crate::bot::Bot;
 
+use crate::bot::Bot;
 use crate::commands::*;
 
 struct Handler;
@@ -56,10 +55,6 @@ impl EventHandler for Handler {
     }
 }
 
-#[group]
-#[commands(ping, version, shutdown, reset)]
-struct General;
-
 pub(crate) async fn create_framework(token: &str) -> StandardFramework {
     let http = Http::new(token);
 
@@ -75,7 +70,9 @@ pub(crate) async fn create_framework(token: &str) -> StandardFramework {
         Err(why) => panic!("Could not access application info: {:?}", why),
     };
 
-    let framework = StandardFramework::new().group(&GENERAL_GROUP);
+    let framework = StandardFramework::new()
+        .group(&GENERAL_GROUP)
+        .help(&MY_HELP);
     framework.configure(Configuration::new().owners(owners).prefix("~"));
 
     framework
