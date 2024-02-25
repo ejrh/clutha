@@ -40,7 +40,7 @@ Commands
 ---
 
   * `~version` Display the version information
-  * `-shutdown` Shut down the Clutha application, signing off from all Discord servers
+  * `~shutdown` Shut down the Clutha application, signing off from all Discord servers
   * `~ping` Very that the application is running and responsive.
 
 Caveats and disclaimers
