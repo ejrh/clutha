@@ -4,7 +4,7 @@ mod discord;
 mod gemini;
 
 fn main() {
-    let api_key = std::env::var("GEMINI_KEY").unwrap();
+    let api_key = std::env::var("GEMINI_API_KEY").unwrap();
 
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_io()

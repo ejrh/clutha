@@ -16,7 +16,7 @@ Set up
 
 ```
     export DISCORD_TOKEN=<token from step 1>
-    export API_KEY=<api key from step 2>
+    export GEMINI_API_KEY=<api key from step 2>
 ```
 
   5. Run Clutha by typing `cargo run`.
