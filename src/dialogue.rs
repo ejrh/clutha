@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::mem::take;
 
 use serenity::all::{Context, Message};
 use serenity::framework::standard::CommandResult;
@@ -100,11 +101,107 @@ async fn do_ai_response(ctx: &Context, msg: &Message) -> CommandResult {
 
     println!(">>> {}\n", result);
 
-    msg.channel_id.say(&ctx, result).await?;
+    let result_segments = prepare_result(result);
+    for segment in result_segments {
+        msg.channel_id.say(&ctx, segment).await?;
+    }
 
     typing.stop();
 
     Ok(())
+}
+
+// This seems to be Discord's limit; make our limit slightly smaller to allow to overhead
+const DISCORD_MAX_SEGMENT_SIZE: usize = 2000;
+const MAX_SEGMENT_SIZE: usize = DISCORD_MAX_SEGMENT_SIZE - 100;
+
+fn prepare_result(result: String) -> Vec<String> {
+    if result.len() < MAX_SEGMENT_SIZE {
+        return vec![result];
+    }
+
+    let groups = split_result(result, MAX_SEGMENT_SIZE);
+    merge_groups(groups, MAX_SEGMENT_SIZE)
+}
+fn split_result(result: String, max_size: usize) -> Vec<String> {
+
+    /* Specific lines of the input are identified as split points:
+         - Blank lines (outside of code blocks, and not following headings).
+         - Code block lines starting ```; included with following group or current group
+           depending on parity.
+     */
+
+    #[derive(Default)]
+    struct Grouper {
+        groups: Vec<String>,
+        current_group: String
+    }
+
+    impl Grouper {
+        fn push(&mut self, line: &str) {
+            self.current_group.push_str(line);
+            self.current_group.push('\n');
+        }
+
+        fn end_group(&mut self) {
+            let group = take(&mut self.current_group);
+            if !group.is_empty() {
+                self.groups.push(group);
+            }
+        }
+    }
+
+    let mut grouper = Grouper::default();
+    let mut after_heading = false;
+    let mut in_code_block = false;
+
+    for line in result.lines() {
+        if line.is_empty() && !after_heading && !in_code_block {
+            grouper.push(line);
+            grouper.end_group();
+        } else if line.starts_with("```") {
+            in_code_block = !in_code_block;
+            if in_code_block {
+                grouper.end_group();
+            }
+            grouper.push(line);
+            if !in_code_block {
+                grouper.end_group();
+            }
+        } else {
+            if line.starts_with('*') {
+                after_heading = true;
+            } else {
+                after_heading = false;
+            }
+            grouper.push(line);
+        }
+    }
+    grouper.end_group();
+
+    grouper.groups
+}
+
+fn merge_groups(groups: Vec<String>, max_size: usize) -> Vec<String> {
+    let mut segments = Vec::new();
+    let mut merged_group = String::new();
+    for group in groups {
+        if merged_group.len() + group.len() > max_size {
+            if !merged_group.is_empty() {
+                segments.push(take(&mut merged_group));
+            }
+            if group.len() > max_size {
+                merged_group.push_str("(Group too big to send!)");
+                continue;
+            }
+        }
+        merged_group.push_str(&group);
+    }
+    if !merged_group.is_empty() {
+        segments.push(merged_group);
+    }
+
+    segments
 }
 
 #[cfg(test)]
@@ -123,5 +220,42 @@ mod test {
         assert_eq!(800, d.total_len);
         d.push("t", &big_str.clone());
         assert_eq!(800, d.total_len);
+    }
+
+    #[test]
+    fn test_split_result() {
+        let input = "".to_string();
+        let segments = split_result(input, 0);
+        assert_eq!(0, segments.len());
+
+        let input = "one line\n\n".to_string();
+        let segments = split_result(input, 0);
+        assert_eq!(vec!["one line\n\n"], segments);
+
+        let input = "one\nsegment".to_string();
+        let segments = split_result(input, 0);
+        assert_eq!(vec!["one\nsegment\n"], segments);
+
+        let input = "now\ntwo\n\nsegments".to_string();
+        let segments = split_result(input, 0);
+        assert_eq!(vec!["now\ntwo\n\n", "segments\n"], segments);
+
+        let input = "line 1\n\n* heading *\n\nline 2".to_string();
+        let segments = split_result(input, 0);
+        assert_eq!(vec!["line 1\n\n", "* heading *\n\nline 2\n"], segments);
+
+        let input = "text\n```rust\nsome\n\ncode\n\nhere\n```\nmore text".to_string();
+        let segments = split_result(input, 0);
+        assert_eq!(vec!["text\n", "```rust\nsome\n\ncode\n\nhere\n```\n", "more text\n"], segments);
+    }
+
+    #[test]
+    fn test_merge_groups() {
+        let groups = vec!["group1\n\n".into(), "group2".into()];
+        let segments = merge_groups(groups.clone(), 10);
+        assert_eq!(vec!["group1\n\n", "group2"], segments);
+
+        let segments = merge_groups(groups, 20);
+        assert_eq!(vec!["group1\n\ngroup2"], segments);
     }
 }
