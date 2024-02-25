@@ -1,6 +1,8 @@
 use std::collections::VecDeque;
+
 use serenity::all::{Context, Message};
 use serenity::framework::standard::CommandResult;
+
 use crate::discord::DialogueContainer;
 use crate::gemini::generate_content;
 
