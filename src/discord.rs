@@ -54,7 +54,7 @@ impl EventHandler for Handler {
 struct General;
 
 pub(crate) async fn create_framework(token: &str) -> StandardFramework {
-    let http = Http::new(&token);
+    let http = Http::new(token);
 
     let (owners, _bot_id) = match http.get_current_application_info().await {
         Ok(info) => {
@@ -81,7 +81,7 @@ pub(crate) async fn run_bot(gemini_api_key: &str, token: &str) -> Result<(), ser
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
 
-    let mut client = Client::builder(&token, intents)
+    let mut client = Client::builder(token, intents)
         .framework(framework)
         .event_handler(Handler)
         .await?;

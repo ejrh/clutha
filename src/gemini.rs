@@ -1,5 +1,4 @@
 use std::fmt::{Debug, Display, Formatter};
-use std::iter::Map;
 use reqwest::StatusCode;
 use serde_json::{json, Value};
 use crate::gemini::Error::BadResponse;
@@ -8,9 +7,9 @@ const BASE_URL: &str = "https://generativelanguage.googleapis.com/v1/models/gemi
 
 #[derive(Debug)]
 pub enum Error {
-    ReqwestError(reqwest::Error),
-    SerdeJsonError(serde_json::Error),
-    BadHttpStatus(StatusCode),
+    Reqwest(reqwest::Error),
+    SerdeJson(serde_json::Error),
+    HttpStatus(StatusCode),
     BadResponse,
 }
 
@@ -26,13 +25,13 @@ impl std::error::Error for Error {
 
 impl From<reqwest::Error> for Error {
     fn from(value: reqwest::Error) -> Self {
-        Error::ReqwestError(value)
+        Error::Reqwest(value)
     }
 }
 
 impl From<serde_json::Error> for Error {
     fn from(value: serde_json::Error) -> Self {
-        Error::SerdeJsonError(value)
+        Error::SerdeJson(value)
     }
 }
 
@@ -72,7 +71,7 @@ pub(crate) async fn generate_content(api_key: &str, prompt: Vec<(String, String)
     let text = response.text().await?;
 
     if !status.is_success() {
-        return Err(Error::BadHttpStatus(status))
+        return Err(Error::HttpStatus(status))
     }
 
     let value: Value = serde_json::from_str(&text)?;

@@ -8,7 +8,7 @@ use crate::discord::ShardManagerContainer;
 
 #[command]
 async fn version(ctx: &Context, msg: &Message) -> CommandResult {
-    const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
 
     msg.channel_id.say(&ctx, &format!("Clutha version {VERSION}")).await?;
 

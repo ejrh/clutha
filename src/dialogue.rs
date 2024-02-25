@@ -1,5 +1,4 @@
-use std::collections::{HashMap, VecDeque};
-use serde_json::Value;
+use std::collections::VecDeque;
 use serenity::all::{Context, Message};
 use serenity::framework::standard::CommandResult;
 use crate::discord::DialogueContainer;
