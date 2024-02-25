@@ -80,6 +80,7 @@ impl Gemini {
         let text = response.text().await?;
 
         if !status.is_success() {
+            println!("Bad HTTP content: {}", text);
             return Err(Error::HttpStatus(status))
         }
 
