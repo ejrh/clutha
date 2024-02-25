@@ -113,11 +113,7 @@ fn split_result(result: String, max_size: usize) -> Vec<String> {
                 grouper.end_group();
             }
         } else {
-            if line.starts_with('*') {
-                after_heading = true;
-            } else {
-                after_heading = false;
-            }
+            after_heading = line.starts_with('*') && line.ends_with('*');
             grouper.push(line);
         }
     }
@@ -187,6 +183,10 @@ mod test {
         let input = "line 1\n\n* heading *\n\nline 2".to_string();
         let segments = split_result(input, 0);
         assert_eq!(vec!["line 1\n\n", "* heading *\n\nline 2\n"], segments);
+
+        let input = "* bullet point\n\ntext".to_string();
+        let segments = split_result(input, 0);
+        assert_eq!(vec!["* bullet point\n\n", "text\n"], segments);
 
         let input = "text\n```rust\nsome\n\ncode\n\nhere\n```\nmore text".to_string();
         let segments = split_result(input, 0);
