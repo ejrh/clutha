@@ -1,6 +1,11 @@
 Clutha
 ===
 
+[![Rust build](https://github.com/ejrh/clutha/actions/workflows/rust-build.yml/badge.svg)](https://github.com/ejrh/clutha/actions/workflows/rust-build.yml)
+[![Rust tests](https://github.com/ejrh/clutha/actions/workflows/rust-tests.yml/badge.svg)](https://github.com/ejrh/clutha/actions/workflows/rust-tests.yml)
+[![Rust Clippy](https://github.com/ejrh/clutha/actions/workflows/rust-clippy.yml/badge.svg)](https://github.com/ejrh/clutha/actions/workflows/rust-clippy.yml)
+
+
 Clutha is a simple replacement for the lately departed Clyde of Discord.
 
 Set up
