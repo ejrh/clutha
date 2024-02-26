@@ -47,4 +47,6 @@ Caveats and disclaimers
 ---
 
 Not designed for use by general public.
-Use at own risk.
+Install or run at own risk.
+
+Do not operate heavy machinery after reading this disclaimer.
