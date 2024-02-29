@@ -8,8 +8,8 @@ pub(crate) struct Part {
 
 pub(crate) struct Dialogue {
     parts: VecDeque<Part>,
-    total_len: u64,
-    max_len: u64
+    pub(crate) total_len: u64,
+    pub(crate) max_len: u64
 }
 
 const MAXIMUM_DIALOGUE_LEN: u64 = 1_000;
@@ -48,6 +48,7 @@ impl Dialogue {
 
     pub(crate) fn reset(&mut self) {
         self.parts.clear();
+        self.total_len = 0;
     }
 }
 
