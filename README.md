@@ -43,10 +43,13 @@ Clutha currently uses Google Gemini for AI functionality.
 
 Commands
 --- 
-  * `~help` Get help on the available commands
-  * `~version` Display the version information
-  * `~shutdown` Shut down the Clutha application, signing off from all Discord servers
-  * `~ping` Verify that the application is running and responsive.
+
+There are a number of commands that control Clutha.  They are prefixed by `~` and are not
+considered part of the AI conversation.
+
+A list of commands available to a user can be displayed with `~help`.  Commands in the Admin
+group require ownership of the bot (i.e. being the Discord user that owns the Discord App that
+Clutha is logged in as).
 
 Caveats and disclaimers
 ---

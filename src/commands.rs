@@ -78,5 +78,10 @@ async fn my_help(
 }
 
 #[group]
-#[commands(ping, version, shutdown, reset)]
+#[commands(ping, version, reset)]
 struct General;
+
+#[group]
+#[owners_only]
+#[commands(shutdown)]
+struct Admin;

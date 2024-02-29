@@ -58,12 +58,11 @@ impl EventHandler for Handler {
 
 pub(crate) async fn create_framework(token: &str) -> Result<StandardFramework, Error> {
     let http = Http::new(token);
-
     let info = http.get_current_application_info().await?;
-
     let owners: HashSet<_> = info.owner.iter().map(|u| u.id).collect();
 
     let framework = StandardFramework::new()
+        .group(&ADMIN_GROUP)
         .group(&GENERAL_GROUP)
         .help(&MY_HELP);
     framework.configure(Configuration::new().owners(owners).prefix("~"));
