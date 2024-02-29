@@ -8,20 +8,20 @@ use serenity::model::prelude::{Message, UserId};
 use serenity::utils::MessageBuilder;
 use tracing::error;
 
-use crate::discord::{BotContainer, ShardManagerContainer};
+use crate::discord::{BotContainer, ShardManagerContainer, system_message};
 
 #[command]
 async fn version(ctx: &Context, msg: &Message) -> CommandResult {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-    msg.channel_id.say(&ctx, &format!("Clutha version {VERSION}")).await?;
+    system_message(ctx, msg, &format!("Clutha version {VERSION}")).await?;
 
     Ok(())
 }
 
 #[command]
 async fn shutdown(ctx: &Context, msg: &Message) -> CommandResult {
-    msg.channel_id.say(&ctx, "Shutting down").await?;
+    system_message(ctx, msg, "Shutting down").await?;
 
     let data = ctx.data.read().await;
     if let Some(shard_manager) = data.get::<ShardManagerContainer>() {
@@ -43,7 +43,7 @@ async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
         .push(" channel")
         .build();
 
-    msg.channel_id.say(&ctx, &response).await?;
+    system_message(ctx, msg, &response).await?;
 
     Ok(())
 }
@@ -59,7 +59,7 @@ async fn reset(ctx: &Context, msg: &Message) -> CommandResult {
 
     bot.dialogue.reset();
 
-    msg.channel_id.say(&ctx, "Dialogue reset").await?;
+    system_message(ctx, msg, "Dialogue reset").await?;
 
     Ok(())
 }

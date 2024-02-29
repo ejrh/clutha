@@ -2,6 +2,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use serenity::{async_trait, Error};
+use serenity::all::{CreateEmbed, CreateMessage};
+use serenity::all::standard::CommandResult;
 use serenity::framework::standard::Configuration;
 use serenity::framework::{Framework, StandardFramework};
 use serenity::gateway::ShardManager;
@@ -90,5 +92,12 @@ pub(crate) async fn run_bot(bot: Bot, token: &str) -> Result<(), Error> {
 
     client.start().await?;
 
+    Ok(())
+}
+
+pub(crate) async fn system_message(ctx: &Context, msg: &Message, text: &str) -> CommandResult {
+    let mut embed = CreateEmbed::new().description(text);
+    let builder = CreateMessage::new().embed(embed);
+    msg.channel_id.send_message(&ctx.http, builder).await?;
     Ok(())
 }
