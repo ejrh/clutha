@@ -3,8 +3,9 @@ mod model;
 use std::fmt::{Debug, Display, Formatter};
 
 use reqwest::StatusCode;
-use serde_json::{json, Value};
 use tracing::error;
+
+use crate::gemini::model::*;
 
 const BASE_URL: &str = "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent";
 
@@ -13,6 +14,7 @@ pub enum Error {
     Reqwest(reqwest::Error),
     SerdeJson(serde_json::Error),
     HttpStatus(StatusCode),
+    BadRequest,
     BadResponse,
 }
 
@@ -54,8 +56,13 @@ impl Gemini {
 
         let request = build_request(prompt);
 
+        let Ok(request_str) = serde_json::to_string(&request) else {
+            error!("Couldn't serialise request: {:?}", request);
+            return Err(Error::BadRequest)
+        };
+
         let response = client.post(full_url)
-            .body(request.to_string())
+            .body(request_str)
             .send()
             .await?;
         let status = response.status();
@@ -66,36 +73,32 @@ impl Gemini {
             return Err(Error::HttpStatus(status))
         }
 
-        let value: Value = serde_json::from_str(&text)?;
-        let Ok(result) = model::parse_response(&value) else {
+        let Ok(response) = serde_json::from_str::<GenerateContentResponse>(&text) else {
             error!("Bad response JSON: {}", text);
             return Err(Error::BadResponse)
         };
 
-        let text = result.candidates[0].content.parts[0].text.clone();
+        let text = response.candidates[0].content.parts[0].text.clone();
 
         Ok(text)
     }
 }
 
-fn build_request(prompt: Vec<(String, String)>) -> Value {
-    let mut arr = Vec::new();
+fn build_request(prompt: Vec<(String, String)>) -> GenerateContentRequest {
+    let mut contents = Vec::new();
 
     for (role, text) in prompt.into_iter() {
-        let obj = json!({
-            "role": role,
-            "parts": [
-                { "text": text }
-            ]
-        });
-        arr.push(obj);
+        let part = Part { text };
+        let content = Content {
+            parts: vec![part],
+            role,
+        };
+        contents.push(content);
     }
 
-    let contents = Value::Array(arr);
-
-    json!({
-        "contents": contents
-    })
+    GenerateContentRequest {
+        contents,
+    }
 }
 
 #[cfg(test)]
@@ -107,7 +110,7 @@ mod test {
         let prompt = vec![("role1".to_string(), "text1".to_string())];
         let request = build_request(prompt);
 
-        let json = request.to_string();
+        let json = serde_json::to_string(&request).unwrap();
 
         assert_eq!("{\"contents\":[{\"parts\":[{\"text\":\"text1\"}],\"role\":\"role1\"}]}", json);
     }
