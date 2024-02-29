@@ -2,6 +2,7 @@ use std::fmt::{Debug, Display, Formatter};
 
 use reqwest::StatusCode;
 use serde_json::{json, Value};
+use tracing::error;
 
 const BASE_URL: &str = "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent";
 
@@ -80,13 +81,13 @@ impl Gemini {
         let text = response.text().await?;
 
         if !status.is_success() {
-            println!("Bad HTTP content: {}", text);
+            error!("Bad HTTP content: {}", text);
             return Err(Error::HttpStatus(status))
         }
 
         let value: Value = serde_json::from_str(&text)?;
         let Ok(result) = parse_response(&value) else {
-            println!("Bad response JSON: {}", text);
+            error!("Bad response JSON: {}", text);
             return Err(Error::BadResponse)
         };
 

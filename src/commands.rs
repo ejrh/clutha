@@ -6,6 +6,7 @@ use serenity::framework::standard::{Args, CommandGroup, CommandResult, HelpOptio
 use serenity::framework::standard::macros::{command, group, help};
 use serenity::model::prelude::{Message, UserId};
 use serenity::utils::MessageBuilder;
+use tracing::error;
 
 use crate::discord::{BotContainer, ShardManagerContainer};
 
@@ -52,7 +53,7 @@ async fn reset(ctx: &Context, msg: &Message) -> CommandResult {
     let mut data = ctx.data.write().await;
     let Some(bot) = data.get_mut::<BotContainer>()
     else {
-        println!("Couldn't get bot object!");
+        error!("Couldn't get bot object!");
         return Ok(())
     };
 
