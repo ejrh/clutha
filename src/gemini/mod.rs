@@ -62,7 +62,7 @@ impl Gemini {
         };
 
         let response = client.post(full_url)
-            .body(request_str)
+            .body(request_str.clone())
             .send()
             .await?;
         let status = response.status();
@@ -70,6 +70,7 @@ impl Gemini {
 
         if !status.is_success() {
             error!("Bad HTTP content: {}", text);
+            error!("Request was: {}", request_str);
             return Err(Error::HttpStatus(status))
         }
 
