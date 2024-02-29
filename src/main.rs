@@ -1,5 +1,6 @@
 use std::process::ExitCode;
 use tracing::error;
+
 use crate::bot::Bot;
 use crate::dialogue::Dialogue;
 use crate::gemini::Gemini;

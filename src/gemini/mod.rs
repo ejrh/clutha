@@ -1,3 +1,5 @@
+mod model;
+
 use std::fmt::{Debug, Display, Formatter};
 
 use reqwest::StatusCode;
@@ -36,27 +38,6 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-struct Part {
-    text: String,
-}
-
-struct Content {
-    parts: Vec<Part>,
-    role: String,
-}
-
-struct Candidate {
-    content: Content,
-    // finish reason
-    // index
-    // safety ratings
-}
-
-struct Response {
-    candidates: Vec<Candidate>,
-    // prompt feedback; safety ratings
-}
-
 pub struct Gemini {
     api_key: String,
 }
@@ -86,7 +67,7 @@ impl Gemini {
         }
 
         let value: Value = serde_json::from_str(&text)?;
-        let Ok(result) = parse_response(&value) else {
+        let Ok(result) = model::parse_response(&value) else {
             error!("Bad response JSON: {}", text);
             return Err(Error::BadResponse)
         };
@@ -117,32 +98,6 @@ fn build_request(prompt: Vec<(String, String)>) -> Value {
     })
 }
 
-fn parse_response(value: &Value) -> Result<Response, Error> {
-    let candidates = value.get("candidates").ok_or(Error::BadResponse)?
-        .as_array().ok_or(Error::BadResponse)?;
-    let candidates: Vec<Candidate> = candidates.iter().map(|c| {
-        let content = c.get("content")?;
-        let parts = content.get("parts")?
-            .as_array()?;
-        let parts: Vec<Part> = parts.iter().map(|p| {
-            let text = p.get("text")?
-                .as_str()?
-                .to_string();
-            Some(Part { text })
-        }).collect::<Option<_>>()?;
-        let role = content.get("role")?
-            .as_str()?
-            .to_string();
-        Some(Candidate {
-            content: Content { parts, role },
-        })
-    }).collect::<Option<_>>().ok_or(Error::BadResponse)?;
-
-    Ok(Response {
-        candidates,
-    })
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -155,20 +110,5 @@ mod test {
         let json = request.to_string();
 
         assert_eq!("{\"contents\":[{\"parts\":[{\"text\":\"text1\"}],\"role\":\"role1\"}]}", json);
-    }
-
-    #[test]
-    fn test_parse_response() {
-        let response_str = r#"{ "candidates": [ { "content": { "parts": [ { "text": "Hello" } ], "role": "model" }, "finishReason": "STOP" } ] }"#;
-
-        let value = serde_json::from_str(&response_str).unwrap();
-
-        let response = parse_response(&value).unwrap();
-
-        assert_eq!(1, response.candidates.len());
-        let cand = &response.candidates[0];
-        assert_eq!("model", cand.content.role);
-        assert_eq!(1, cand.content.parts.len());
-        assert_eq!("Hello", cand.content.parts[0].text);
     }
 }
