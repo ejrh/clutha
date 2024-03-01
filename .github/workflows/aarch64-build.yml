@@ -1,0 +1,35 @@
+name: aarch64-unknown-linux-musl build
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Install deps
+        run: sudo apt install libssl-dev
+
+      - name: Build
+        run: cross build --release --target aarch64-unknown-linux-musl
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clutha
+          path: target/aarch64-unknown-linux-musl/release/clutha
