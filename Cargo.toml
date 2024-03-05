@@ -12,5 +12,6 @@ tokio = "1.36.0"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
 
-# Need this for cross-compiling
+# Need this for cross-compiling, but it doesn't work on Windows
+[target.'cfg(unix)'.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
