@@ -1,5 +1,6 @@
 use serenity::all::{Context, Message};
 use serenity::all::standard::CommandResult;
+use tracing_subscriber::registry::Data;
 
 use crate::dialogue::Dialogue;
 use crate::gemini::Gemini;
@@ -30,14 +31,14 @@ impl Bot {
     async fn do_ai_response(&mut self, ctx: &Context, msg: &Message) -> CommandResult {
         let typing = msg.channel_id.start_typing(&ctx.http);
 
-        let prompt = self.dialogue.assemble_prompt();
+        let prompt = assemble_prompt(&self.dialogue);
         let result = self.gemini.generate_content(prompt).await?;
 
         self.dialogue.push("model", &result);
 
         println!(">>> {}\n", result);
 
-        let result_segments = crate::dialogue::prepare_result(result);
+        let result_segments = prepare_response(result);
         for segment in result_segments {
             msg.channel_id.say(&ctx, segment).await?;
         }
@@ -46,4 +47,25 @@ impl Bot {
 
         Ok(())
     }
+}
+
+fn assemble_prompt(dialogue: &Dialogue) -> Vec<(String, String)> {
+    let mut prompt = Vec::new();
+    for part in &dialogue.parts {
+        prompt.push((part.role.clone(), part.text.clone()));
+    }
+    prompt
+}
+
+// This seems to be Discord's limit; make our limit slightly smaller to allow to overhead
+const DISCORD_MAX_SEGMENT_SIZE: usize = 2000;
+const MAX_SEGMENT_SIZE: usize = DISCORD_MAX_SEGMENT_SIZE - 100;
+
+fn prepare_response(result: String) -> Vec<String> {
+    if result.len() < MAX_SEGMENT_SIZE {
+        return vec![result];
+    }
+
+    let groups = crate::dialogue::split_result(result, MAX_SEGMENT_SIZE);
+    crate::dialogue::merge_groups(groups, MAX_SEGMENT_SIZE)
 }

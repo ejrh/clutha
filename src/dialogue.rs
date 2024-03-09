@@ -2,12 +2,12 @@ use std::collections::VecDeque;
 use std::mem::take;
 
 pub(crate) struct Part {
-    role: String,
-    text: String,
+    pub(crate) role: String,
+    pub(crate) text: String,
 }
 
 pub(crate) struct Dialogue {
-    parts: VecDeque<Part>,
+    pub(crate) parts: VecDeque<Part>,
     pub(crate) total_len: u64,
     pub(crate) max_len: u64
 }
@@ -38,14 +38,6 @@ impl Dialogue {
         }
     }
 
-    pub(crate) fn assemble_prompt(&self) -> Vec<(String, String)> {
-        let mut prompt = Vec::new();
-        for part in &self.parts {
-            prompt.push((part.role.clone(), part.text.clone()));
-        }
-        prompt
-    }
-
     pub(crate) fn reset(&mut self) {
         self.parts.clear();
         self.total_len = 0;
@@ -60,19 +52,7 @@ impl Part {
     }
 }
 
-// This seems to be Discord's limit; make our limit slightly smaller to allow to overhead
-const DISCORD_MAX_SEGMENT_SIZE: usize = 2000;
-const MAX_SEGMENT_SIZE: usize = DISCORD_MAX_SEGMENT_SIZE - 100;
-
-pub(crate) fn prepare_result(result: String) -> Vec<String> {
-    if result.len() < MAX_SEGMENT_SIZE {
-        return vec![result];
-    }
-
-    let groups = split_result(result, MAX_SEGMENT_SIZE);
-    merge_groups(groups, MAX_SEGMENT_SIZE)
-}
-fn split_result(result: String, max_size: usize) -> Vec<String> {
+pub(crate) fn split_result(result: String, max_size: usize) -> Vec<String> {
 
     /* Specific lines of the input are identified as split points:
          - Blank lines (outside of code blocks, and not following headings).
@@ -127,7 +107,7 @@ fn split_result(result: String, max_size: usize) -> Vec<String> {
     grouper.groups
 }
 
-fn merge_groups(groups: Vec<String>, max_size: usize) -> Vec<String> {
+pub(crate) fn merge_groups(groups: Vec<String>, max_size: usize) -> Vec<String> {
     let mut segments = Vec::new();
     let mut merged_group = String::new();
     for group in groups {
