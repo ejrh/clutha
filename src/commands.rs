@@ -114,6 +114,38 @@ async fn my_help(
     Ok(())
 }
 
+#[command]
+async fn default(ctx: &Context, msg: &Message) -> CommandResult {
+    let mut data = ctx.data.write().await;
+    let Some(bot) = data.get_mut::<BotContainer>()
+        else {
+            error!("Couldn't get bot object!");
+            return Ok(())
+        };
+
+    bot.set_prompt(ctx, msg, "default").await?;
+
+    system_message(ctx, msg, "Prompt set to *default*").await?;
+
+    Ok(())
+}
+
+#[command]
+async fn about(ctx: &Context, msg: &Message) -> CommandResult {
+    let mut data = ctx.data.write().await;
+    let Some(bot) = data.get_mut::<BotContainer>()
+        else {
+            error!("Couldn't get bot object!");
+            return Ok(())
+        };
+
+    bot.set_prompt(ctx, msg, "about").await?;
+
+    system_message(ctx, msg, "Prompt set to *about*").await?;
+
+    Ok(())
+}
+
 #[group]
 #[commands(ping, version, reset, info)]
 struct General;
@@ -122,3 +154,7 @@ struct General;
 #[owners_only]
 #[commands(shutdown)]
 struct Admin;
+
+#[group]
+#[commands(default, about)]
+struct Prompt;

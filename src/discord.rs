@@ -66,6 +66,7 @@ pub(crate) async fn create_framework(token: &str) -> Result<StandardFramework, E
     let framework = StandardFramework::new()
         .group(&ADMIN_GROUP)
         .group(&GENERAL_GROUP)
+        .group(&PROMPT_GROUP)
         .help(&MY_HELP);
     framework.configure(Configuration::new().owners(owners).prefix("~"));
 

@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::io::BufRead;
 use std::mem::take;
 
 pub(crate) struct Part {
@@ -28,6 +29,12 @@ impl Dialogue {
         self.total_len += part.len();
         self.parts.push_back(part);
         self.truncate_to_size();
+    }
+
+    pub(crate) fn append(&mut self, other: &Dialogue) {
+        for part in &other.parts {
+            self.push(&part.role, &part.text);
+        }
     }
 
     fn truncate_to_size(&mut self) {
@@ -74,7 +81,7 @@ pub(crate) fn split_result(result: String, max_size: usize) -> Vec<String> {
 
         fn end_group(&mut self) {
             let group = take(&mut self.current_group);
-            if !group.is_empty() {
+            if !group.trim().is_empty() {
                 self.groups.push(group);
             }
         }
@@ -127,6 +134,33 @@ pub(crate) fn merge_groups(groups: Vec<String>, max_size: usize) -> Vec<String> 
     }
 
     segments
+}
+
+pub(crate) fn read_dialogue(f: &mut impl BufRead) -> Result<Dialogue, std::io::Error> {
+    let mut dialogue = Dialogue::new();
+
+    let mut dialogue_text = String::new();
+    loop {
+        let mut buf = String::new();
+        let num_read = f.read_line(&mut buf)?;
+
+        if num_read == 0 { break }
+        if buf.starts_with("---") { break }
+
+        dialogue_text.push_str(&buf);
+    }
+
+    for text in split_result(dialogue_text, 10000) {
+        let (role, text) = if text.starts_with('>') {
+            ("user", &text[2..])
+        } else {
+            ("model", text.as_str())
+        };
+
+        dialogue.push(role, &text);
+    }
+
+    Ok(dialogue)
 }
 
 #[cfg(test)]
@@ -186,5 +220,26 @@ mod test {
 
         let segments = merge_groups(groups, 20);
         assert_eq!(vec!["group1\n\ngroup2"], segments);
+    }
+
+    #[test]
+    fn test_read_dialogue() {
+        const TEST_DIALOGUE: &str = "> Hello
+there\n
+Hello back
+to you";
+
+        let mut stream = TEST_DIALOGUE.as_bytes();
+        let dialogue = read_dialogue(&mut stream).unwrap();
+
+        assert_eq!(2, dialogue.parts.len());
+
+        let first_part = &dialogue.parts[0];
+        assert_eq!("user", first_part.role);
+        assert_eq!("Hello\nthere\n\n", first_part.text);
+
+        let second_part = &dialogue.parts[1];
+        assert_eq!("model", second_part.role);
+        assert_eq!("Hello back\nto you\n", second_part.text);
     }
 }

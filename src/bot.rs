@@ -1,9 +1,12 @@
+use std::path::PathBuf;
+
 use itertools::Itertools;
 use serenity::all::{Context, Message};
 use serenity::all::standard::CommandResult;
 
-use crate::dialogue::Dialogue;
+use crate::dialogue::{Dialogue, Part};
 use crate::gemini::Gemini;
+use crate::prompt::load_prompt;
 
 pub(crate) struct Bot {
     pub(crate) gemini: Gemini,
@@ -44,6 +47,25 @@ impl Bot {
         }
 
         typing.stop();
+
+        Ok(())
+    }
+
+    pub(crate) async fn set_prompt(&mut self, ctx: &Context, msg: &Message, prompt_name: &str) -> CommandResult {
+        let mut path = PathBuf::new();
+        path.push("prompts/");
+        path.push(format!("{}.txt", prompt_name));
+        let prompt = load_prompt(&path)?;
+
+        self.dialogue.append(&prompt.prompt);
+        self.dialogue.append(&prompt.initial);
+
+        let x = prompt.initial.parts.iter().last();
+        if let Some(Part { role, text }) = x {
+            if role == "model" {
+                msg.channel_id.say(&ctx, text).await?;
+            }
+        }
 
         Ok(())
     }

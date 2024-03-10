@@ -10,6 +10,7 @@ mod commands;
 mod dialogue;
 mod discord;
 mod gemini;
+mod prompt;
 
 fn main() -> ExitCode {
     tracing_subscriber::fmt::init();
