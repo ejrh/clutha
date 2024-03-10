@@ -1,6 +1,6 @@
+use itertools::Itertools;
 use serenity::all::{Context, Message};
 use serenity::all::standard::CommandResult;
-use tracing_subscriber::registry::Data;
 
 use crate::dialogue::Dialogue;
 use crate::gemini::Gemini;
@@ -51,8 +51,9 @@ impl Bot {
 
 fn assemble_prompt(dialogue: &Dialogue) -> Vec<(String, String)> {
     let mut prompt = Vec::new();
-    for part in &dialogue.parts {
-        prompt.push((part.role.clone(), part.text.clone()));
+    for (key, group) in dialogue.parts.iter().group_by(|p| &p.role).into_iter() {
+        let text = group.map(|p| &p.text).join("\n\n");
+        prompt.push((key.clone(), text));
     }
     prompt
 }
@@ -68,4 +69,25 @@ fn prepare_response(result: String) -> Vec<String> {
 
     let groups = crate::dialogue::split_result(result, MAX_SEGMENT_SIZE);
     crate::dialogue::merge_groups(groups, MAX_SEGMENT_SIZE)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_assemble_prompt() {
+        let mut dialogue = Dialogue::new();
+        dialogue.push("user", "ab");
+        dialogue.push("user", "cd");
+        dialogue.push("model", "ef");
+        dialogue.push("model", "gh");
+
+        let prompt = assemble_prompt(&dialogue);
+        let expected: Vec<(String, String)> = vec![
+            ("user".into(), "ab\n\ncd".into()),
+            ("model".into(), "ef\n\ngh".into()),
+        ];
+        assert_eq!(expected, prompt);
+    }
 }
