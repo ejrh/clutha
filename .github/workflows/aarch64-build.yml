@@ -28,8 +28,15 @@ jobs:
       - name: Build
         run: cross build --release --target aarch64-unknown-linux-musl
 
+      - name: Assemble artifact
+        run: |
+          mkdir artifact
+          cp target/aarch64-unknown-linux-musl/release/clutha artifact
+          cp -R prompts artifact
+          cp README.md artifact
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: clutha
-          path: target/aarch64-unknown-linux-musl/release/clutha
+          path: artifact
