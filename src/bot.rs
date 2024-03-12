@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use itertools::Itertools;
-use serenity::all::{Context, Message};
 use serenity::all::standard::CommandResult;
+use serenity::all::{Context, Message};
 
 use crate::dialogue::{Dialogue, Part};
 use crate::gemini::Gemini;
@@ -16,10 +16,14 @@ pub(crate) struct Bot {
 impl Bot {
     pub(crate) async fn handle_dialogue(&mut self, ctx: &Context, msg: &Message) -> CommandResult {
         let channel_name = msg.channel_id.name(ctx).await?;
-        if channel_name != "chatter-bot" { return Ok(()) }
+        if channel_name != "chatter-bot" {
+            return Ok(());
+        }
 
         let user_name = &msg.author.name;
-        if user_name == "Clutha" { return Ok(()) }
+        if user_name == "Clutha" {
+            return Ok(());
+        }
 
         let text = &msg.content;
         self.dialogue.push("user", text);
@@ -51,7 +55,12 @@ impl Bot {
         Ok(())
     }
 
-    pub(crate) async fn set_prompt(&mut self, ctx: &Context, msg: &Message, prompt_name: &str) -> CommandResult {
+    pub(crate) async fn set_prompt(
+        &mut self,
+        ctx: &Context,
+        msg: &Message,
+        prompt_name: &str,
+    ) -> CommandResult {
         let mut path = PathBuf::new();
         path.push("prompts/");
         path.push(format!("{}.txt", prompt_name));

@@ -3,13 +3,13 @@ use std::collections::HashSet;
 use serenity::all::{CreateEmbed, CreateMessage, PartialGuild};
 use serenity::client::Context;
 use serenity::framework::standard::help_commands;
-use serenity::framework::standard::{Args, CommandGroup, CommandResult, HelpOptions};
 use serenity::framework::standard::macros::{command, group, help};
+use serenity::framework::standard::{Args, CommandGroup, CommandResult, HelpOptions};
 use serenity::model::prelude::{Message, UserId};
 use serenity::utils::MessageBuilder;
 use tracing::error;
 
-use crate::discord::{BotContainer, ShardManagerContainer, system_message};
+use crate::discord::{system_message, BotContainer, ShardManagerContainer};
 
 #[command]
 async fn version(ctx: &Context, msg: &Message) -> CommandResult {
@@ -52,10 +52,9 @@ async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 async fn reset(ctx: &Context, msg: &Message) -> CommandResult {
     let mut data = ctx.data.write().await;
-    let Some(bot) = data.get_mut::<BotContainer>()
-    else {
+    let Some(bot) = data.get_mut::<BotContainer>() else {
         error!("Couldn't get bot object!");
-        return Ok(())
+        return Ok(());
     };
 
     bot.dialogue.reset();
@@ -68,11 +67,10 @@ async fn reset(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 async fn info(ctx: &Context, msg: &Message) -> CommandResult {
     let mut data = ctx.data.write().await;
-    let Some(bot) = data.get_mut::<BotContainer>()
-        else {
-            error!("Couldn't get bot object!");
-            return Ok(())
-        };
+    let Some(bot) = data.get_mut::<BotContainer>() else {
+        error!("Couldn't get bot object!");
+        return Ok(());
+    };
 
     let mut context = MessageBuilder::new();
     if msg.is_private() {
@@ -82,18 +80,28 @@ async fn info(ctx: &Context, msg: &Message) -> CommandResult {
         let guild_name = if let Some(gid) = msg.guild_id {
             let guild = PartialGuild::get(&ctx.http, gid).await?;
             guild.name
-        } else { "???".to_string() };
-        context.push("Channel ").mention(&channel)
-            .push(" on server ").push_bold_safe(&guild_name);
+        } else {
+            "???".to_string()
+        };
+        context
+            .push("Channel ")
+            .mention(&channel)
+            .push(" on server ")
+            .push_bold_safe(&guild_name);
     };
 
     let mode_str = "active";
     let prompt_str = "default";
 
-    let embed = CreateEmbed::new().description(context.build())
+    let embed = CreateEmbed::new()
+        .description(context.build())
         .field("Mode", mode_str, true)
         .field("Prompt", prompt_str, true)
-        .field("Dialogue size", format!("{} / {}", bot.dialogue.total_len, bot.dialogue.max_len), true);
+        .field(
+            "Dialogue size",
+            format!("{} / {}", bot.dialogue.total_len, bot.dialogue.max_len),
+            true,
+        );
 
     let builder = CreateMessage::new().embed(embed);
     msg.channel_id.send_message(&ctx.http, builder).await?;
@@ -117,11 +125,10 @@ async fn my_help(
 #[command]
 async fn default(ctx: &Context, msg: &Message) -> CommandResult {
     let mut data = ctx.data.write().await;
-    let Some(bot) = data.get_mut::<BotContainer>()
-        else {
-            error!("Couldn't get bot object!");
-            return Ok(())
-        };
+    let Some(bot) = data.get_mut::<BotContainer>() else {
+        error!("Couldn't get bot object!");
+        return Ok(());
+    };
 
     bot.set_prompt(ctx, msg, "default").await?;
 
@@ -133,11 +140,10 @@ async fn default(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 async fn about(ctx: &Context, msg: &Message) -> CommandResult {
     let mut data = ctx.data.write().await;
-    let Some(bot) = data.get_mut::<BotContainer>()
-        else {
-            error!("Couldn't get bot object!");
-            return Ok(())
-        };
+    let Some(bot) = data.get_mut::<BotContainer>() else {
+        error!("Couldn't get bot object!");
+        return Ok(());
+    };
 
     bot.set_prompt(ctx, msg, "about").await?;
 

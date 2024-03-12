@@ -1,9 +1,8 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use serenity::{async_trait, Error};
-use serenity::all::{CreateEmbed, CreateMessage};
 use serenity::all::standard::CommandResult;
+use serenity::all::{CreateEmbed, CreateMessage};
 use serenity::framework::standard::Configuration;
 use serenity::framework::{Framework, StandardFramework};
 use serenity::gateway::ShardManager;
@@ -11,6 +10,7 @@ use serenity::http::Http;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
+use serenity::{async_trait, Error};
 use tracing::{error, info};
 
 use crate::bot::Bot;
@@ -35,21 +35,20 @@ impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
         let trimmed = msg.content.trim_start();
         if trimmed.starts_with('~') {
-            return
+            return;
         }
 
         let mut data = ctx.data.write().await;
-        let Some(bot) = data.get_mut::<BotContainer>()
-        else {
+        let Some(bot) = data.get_mut::<BotContainer>() else {
             error!("Couldn't get bot object!");
-            return
+            return;
         };
 
         match bot.handle_dialogue(&ctx, &msg).await {
             Ok(_) => (),
             Err(why) => {
                 error!("Could not handle dialogue: {:?}", why);
-            },
+            }
         }
     }
 

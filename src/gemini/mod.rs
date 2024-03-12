@@ -7,7 +7,8 @@ use tracing::error;
 
 use crate::gemini::model::*;
 
-const BASE_URL: &str = "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent";
+const BASE_URL: &str =
+    "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent";
 
 #[derive(Debug)]
 pub enum Error {
@@ -24,9 +25,7 @@ impl Display for Error {
     }
 }
 
-impl std::error::Error for Error {
-
-}
+impl std::error::Error for Error {}
 
 impl From<reqwest::Error> for Error {
     fn from(value: reqwest::Error) -> Self {
@@ -46,10 +45,15 @@ pub struct Gemini {
 
 impl Gemini {
     pub(crate) fn new(api_key: &str) -> Self {
-        Gemini { api_key: api_key.to_string() }
+        Gemini {
+            api_key: api_key.to_string(),
+        }
     }
 
-    pub(crate) async fn generate_content(&self, prompt: Vec<(String, String)>) -> Result<String, Error> {
+    pub(crate) async fn generate_content(
+        &self,
+        prompt: Vec<(String, String)>,
+    ) -> Result<String, Error> {
         let client = reqwest::Client::new();
 
         let full_url = format!("{}?key={}", BASE_URL, self.api_key);
@@ -58,10 +62,11 @@ impl Gemini {
 
         let Ok(request_str) = serde_json::to_string(&request) else {
             error!("Couldn't serialise request: {:?}", request);
-            return Err(Error::BadRequest)
+            return Err(Error::BadRequest);
         };
 
-        let response = client.post(full_url)
+        let response = client
+            .post(full_url)
             .body(request_str.clone())
             .send()
             .await?;
@@ -71,12 +76,12 @@ impl Gemini {
         if !status.is_success() {
             error!("Bad HTTP content: {}", text);
             error!("Request was: {}", request_str);
-            return Err(Error::HttpStatus(status))
+            return Err(Error::HttpStatus(status));
         }
 
         let Ok(response) = serde_json::from_str::<GenerateContentResponse>(&text) else {
             error!("Bad response JSON: {}", text);
-            return Err(Error::BadResponse)
+            return Err(Error::BadResponse);
         };
 
         let text = response.candidates[0].content.parts[0].text.clone();
@@ -97,9 +102,7 @@ fn build_request(prompt: Vec<(String, String)>) -> GenerateContentRequest {
         contents.push(content);
     }
 
-    GenerateContentRequest {
-        contents,
-    }
+    GenerateContentRequest { contents }
 }
 
 #[cfg(test)]
@@ -113,6 +116,9 @@ mod test {
 
         let json = serde_json::to_string(&request).unwrap();
 
-        assert_eq!("{\"contents\":[{\"parts\":[{\"text\":\"text1\"}],\"role\":\"role1\"}]}", json);
+        assert_eq!(
+            "{\"contents\":[{\"parts\":[{\"text\":\"text1\"}],\"role\":\"role1\"}]}",
+            json
+        );
     }
 }

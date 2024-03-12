@@ -1,7 +1,7 @@
-use std::io::{BufReader};
+use std::io::BufReader;
 use std::path::Path;
 
-use crate::dialogue::{Dialogue, read_dialogue};
+use crate::dialogue::{read_dialogue, Dialogue};
 
 pub(crate) struct Prompt {
     pub(crate) prompt: Dialogue,

@@ -10,7 +10,7 @@ pub(crate) struct Part {
 pub(crate) struct Dialogue {
     pub(crate) parts: VecDeque<Part>,
     pub(crate) total_len: u64,
-    pub(crate) max_len: u64
+    pub(crate) max_len: u64,
 }
 
 const MAXIMUM_DIALOGUE_LEN: u64 = 1_000;
@@ -25,7 +25,10 @@ impl Dialogue {
     }
 
     pub(crate) fn push(&mut self, role: &str, text: &str) {
-        let part = Part { role: role.to_string(), text: text.to_string() };
+        let part = Part {
+            role: role.to_string(),
+            text: text.to_string(),
+        };
         self.total_len += part.len();
         self.parts.push_back(part);
         self.truncate_to_size();
@@ -39,8 +42,9 @@ impl Dialogue {
 
     fn truncate_to_size(&mut self) {
         while self.total_len > self.max_len {
-            let Some(part) = self.parts.pop_front()
-                else { break };
+            let Some(part) = self.parts.pop_front() else {
+                break;
+            };
             self.total_len -= part.len();
         }
     }
@@ -60,17 +64,16 @@ impl Part {
 }
 
 pub(crate) fn split_result(result: String, max_size: usize) -> Vec<String> {
-
     /* Specific lines of the input are identified as split points:
-         - Blank lines (outside of code blocks, and not following headings).
-         - Code block lines starting ```; included with following group or current group
-           depending on parity.
-     */
+        - Blank lines (outside of code blocks, and not following headings).
+        - Code block lines starting ```; included with following group or current group
+          depending on parity.
+    */
 
     #[derive(Default)]
     struct Grouper {
         groups: Vec<String>,
-        current_group: String
+        current_group: String,
     }
 
     impl Grouper {
@@ -144,8 +147,12 @@ pub(crate) fn read_dialogue(f: &mut impl BufRead) -> Result<Dialogue, std::io::E
         let mut buf = String::new();
         let num_read = f.read_line(&mut buf)?;
 
-        if num_read == 0 { break }
-        if buf.starts_with("---") { break }
+        if num_read == 0 {
+            break;
+        }
+        if buf.starts_with("---") {
+            break;
+        }
 
         dialogue_text.push_str(&buf);
     }
@@ -171,7 +178,10 @@ mod test {
     fn dialogue_len_and_truncation() {
         let mut d = Dialogue::new();
         let big_str = "test ".repeat(400);
-        let part = Part { role: "t".to_string(), text: big_str.clone() };
+        let part = Part {
+            role: "t".to_string(),
+            text: big_str.clone(),
+        };
         assert_eq!(400, part.len());
         d.push("t", &big_str.clone());
         assert_eq!(400, d.total_len);
@@ -209,7 +219,14 @@ mod test {
 
         let input = "text\n```rust\nsome\n\ncode\n\nhere\n```\nmore text".to_string();
         let segments = split_result(input, 0);
-        assert_eq!(vec!["text\n", "```rust\nsome\n\ncode\n\nhere\n```\n", "more text\n"], segments);
+        assert_eq!(
+            vec![
+                "text\n",
+                "```rust\nsome\n\ncode\n\nhere\n```\n",
+                "more text\n"
+            ],
+            segments
+        );
     }
 
     #[test]

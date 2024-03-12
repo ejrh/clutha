@@ -17,12 +17,12 @@ fn main() -> ExitCode {
 
     let Ok(api_key) = std::env::var("GEMINI_API_KEY") else {
         error!("GEMINI_API_KEY not set in environment");
-        return ExitCode::FAILURE
+        return ExitCode::FAILURE;
     };
 
     let Ok(token) = std::env::var("DISCORD_TOKEN") else {
         error!("DISCORD_TOKEN not set in environment");
-        return ExitCode::FAILURE
+        return ExitCode::FAILURE;
     };
 
     let gemini = Gemini::new(&api_key);
@@ -32,7 +32,8 @@ fn main() -> ExitCode {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_io()
         .enable_time()
-        .build().unwrap();
+        .build()
+        .unwrap();
 
     rt.block_on(async {
         let result = discord::run_bot(bot, &token).await;
