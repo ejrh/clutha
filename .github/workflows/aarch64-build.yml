@@ -18,6 +18,8 @@ jobs:
 
       - name: Set up cache
         uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "aarch64-build"
 
       - name: Install cross
         run: cargo install cross --git https://github.com/cross-rs/cross
