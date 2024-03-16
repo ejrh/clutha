@@ -57,8 +57,7 @@ impl Bot {
 
     pub(crate) async fn set_prompt(
         &mut self,
-        ctx: &Context,
-        msg: &Message,
+        ctx: crate::commands::Context<'_>,
         prompt_name: &str,
     ) -> CommandResult {
         let mut path = PathBuf::new();
@@ -72,7 +71,7 @@ impl Bot {
         let x = prompt.initial.parts.iter().last();
         if let Some(Part { role, text }) = x {
             if role == "model" {
-                msg.channel_id.say(&ctx, text).await?;
+                ctx.channel_id().say(&ctx, text).await?;
             }
         }
 

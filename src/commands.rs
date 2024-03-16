@@ -1,84 +1,95 @@
-use std::collections::HashSet;
+use std::sync::Arc;
 
-use serenity::all::{CreateEmbed, CreateMessage, PartialGuild};
-use serenity::client::Context;
-use serenity::framework::standard::help_commands;
-use serenity::framework::standard::macros::{command, group, help};
-use serenity::framework::standard::{Args, CommandGroup, CommandResult, HelpOptions};
-use serenity::model::prelude::{Message, UserId};
+use poise::builtins::HelpConfiguration;
+use poise::{CreateReply, serenity_prelude as serenity};
+use serenity::all::{CreateEmbed, PartialGuild};
+use serenity::framework::Framework;
 use serenity::utils::MessageBuilder;
-use tracing::error;
+use tokio::sync::Mutex;
 
-use crate::discord::{system_message, BotContainer, ShardManagerContainer};
+use crate::bot::Bot;
 
-#[command]
-async fn version(ctx: &Context, msg: &Message) -> CommandResult {
+pub(crate) struct Data {
+    bot: Arc<Mutex<Bot>>,
+}
+
+type Error = Box<dyn std::error::Error + Send + Sync>;
+pub(crate) type Context<'a> = poise::Context<'a, Data, Error>;
+type CommandResult = Result<(), Error>;
+
+#[poise::command(
+    prefix_command,
+    category = "Admin"
+)]
+async fn shutdown(ctx: Context<'_>) -> CommandResult {
+    system_message(ctx, "Shutting down").await?;
+
+    ctx.framework().shard_manager.shutdown_all().await;
+
+    Ok(())
+}
+
+#[poise::command(
+    prefix_command,
+    category = "General"
+)]
+async fn version(ctx: Context<'_>) -> CommandResult {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-    system_message(ctx, msg, &format!("Clutha version {VERSION}")).await?;
+    system_message(ctx, &format!("Clutha version {VERSION}")).await?;
 
     Ok(())
 }
 
-#[command]
-async fn shutdown(ctx: &Context, msg: &Message) -> CommandResult {
-    system_message(ctx, msg, "Shutting down").await?;
-
-    let data = ctx.data.read().await;
-    if let Some(shard_manager) = data.get::<ShardManagerContainer>() {
-        shard_manager.shutdown_all().await;
-    }
-
-    Ok(())
-}
-
-#[command]
-async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
-    let channel = msg.channel_id.to_channel(&ctx).await?;
+#[poise::command(
+    prefix_command,
+    category = "General"
+)]
+async fn ping(ctx: Context<'_>) -> CommandResult {
+    let channel_id = ctx.channel_id();
+    let author = ctx.author();
+    let channel = channel_id.to_channel(&ctx).await?;
 
     let response = MessageBuilder::new()
         .push("User ")
-        .push_bold_safe(&msg.author.name)
+        .push_bold_safe(&author.name)
         .push(" used the 'ping' command in the ")
         .mention(&channel)
         .push(" channel")
         .build();
 
-    system_message(ctx, msg, &response).await?;
+    system_message(ctx, &response).await?;
 
     Ok(())
 }
 
-#[command]
-async fn reset(ctx: &Context, msg: &Message) -> CommandResult {
-    let mut data = ctx.data.write().await;
-    let Some(bot) = data.get_mut::<BotContainer>() else {
-        error!("Couldn't get bot object!");
-        return Ok(());
-    };
-
+#[poise::command(
+    prefix_command,
+    category = "General"
+)]
+async fn reset(ctx: Context<'_>) -> CommandResult {
+    let mut bot = ctx.data().bot.lock().await;
     bot.dialogue.reset();
 
-    system_message(ctx, msg, "Dialogue reset").await?;
+    system_message(ctx, "Dialogue reset").await?;
 
     Ok(())
 }
 
-#[command]
-async fn info(ctx: &Context, msg: &Message) -> CommandResult {
-    let mut data = ctx.data.write().await;
-    let Some(bot) = data.get_mut::<BotContainer>() else {
-        error!("Couldn't get bot object!");
-        return Ok(());
-    };
+#[poise::command(
+    prefix_command,
+    category = "General"
+)]
+async fn info(ctx: Context<'_>) -> CommandResult {
+    let bot = ctx.data().bot.lock().await;
 
     let mut context = MessageBuilder::new();
-    if msg.is_private() {
-        context.push("Private chat with ").mention(&msg.author);
+    if ctx.guild_id().is_none() {
+        context.push("Private chat with ").mention(ctx.author());
     } else {
-        let channel = msg.channel_id.to_channel(&ctx).await?;
-        let guild_name = if let Some(gid) = msg.guild_id {
-            let guild = PartialGuild::get(&ctx.http, gid).await?;
+        let channel = ctx.channel_id().to_channel(&ctx).await?;
+        let guild_name = if let Some(gid) = ctx.guild_id() {
+            let guild = PartialGuild::get(&ctx.http(), gid).await?;
             guild.name
         } else {
             "???".to_string()
@@ -103,64 +114,98 @@ async fn info(ctx: &Context, msg: &Message) -> CommandResult {
             true,
         );
 
-    let builder = CreateMessage::new().embed(embed);
-    msg.channel_id.send_message(&ctx.http, builder).await?;
+    let builder = CreateReply::default().embed(embed);
+    ctx.send(builder).await?;
 
     Ok(())
 }
 
-#[help]
-async fn my_help(
-    context: &Context,
-    msg: &Message,
-    args: Args,
-    help_options: &'static HelpOptions,
-    groups: &[&'static CommandGroup],
-    owners: HashSet<UserId>,
+#[poise::command(
+    prefix_command,
+    category = "Prompt"
+)]
+async fn default(ctx: Context<'_>) -> CommandResult {
+    let mut bot = ctx.data().bot.lock().await;
+    bot.set_prompt(ctx, "default").await?;
+
+    system_message(ctx, "Prompt set to *default*").await?;
+
+    Ok(())
+}
+
+#[poise::command(
+    prefix_command,
+    category = "Prompt"
+)]
+async fn about(ctx: Context<'_>) -> CommandResult {
+    let mut bot = ctx.data().bot.lock().await;
+    bot.set_prompt(ctx, "about").await?;
+
+    system_message(ctx, "Prompt set to *about*").await?;
+
+    Ok(())
+}
+
+#[poise::command(
+    prefix_command,
+    category = "General"
+)]
+async fn help(
+    ctx: Context<'_>,
+    #[rest]
+    command: Option<String>,
 ) -> CommandResult {
-    let _ = help_commands::with_embeds(context, msg, args, help_options, groups, owners).await;
-    Ok(())
-}
+    let extra_text_at_bottom = "\
+Type `?help command` for more info on a command.
+You can edit your `?help` message to the bot and the bot will edit its response.";
 
-#[command]
-async fn default(ctx: &Context, msg: &Message) -> CommandResult {
-    let mut data = ctx.data.write().await;
-    let Some(bot) = data.get_mut::<BotContainer>() else {
-        error!("Couldn't get bot object!");
-        return Ok(());
+    let config = HelpConfiguration {
+        show_subcommands: true,
+        show_context_menu_commands: true,
+        ephemeral: true,
+        extra_text_at_bottom,
+
+        ..Default::default()
     };
-
-    bot.set_prompt(ctx, msg, "default").await?;
-
-    system_message(ctx, msg, "Prompt set to *default*").await?;
-
+    poise::builtins::help(ctx, command.as_deref(), config).await?;
     Ok(())
 }
 
-#[command]
-async fn about(ctx: &Context, msg: &Message) -> CommandResult {
-    let mut data = ctx.data.write().await;
-    let Some(bot) = data.get_mut::<BotContainer>() else {
-        error!("Couldn't get bot object!");
-        return Ok(());
-    };
-
-    bot.set_prompt(ctx, msg, "about").await?;
-
-    system_message(ctx, msg, "Prompt set to *about*").await?;
-
+pub(crate) async fn system_message(ctx: Context<'_>, text: &str) -> CommandResult {
+    let embed = CreateEmbed::new().description(text);
+    let reply = CreateReply::default().embed(embed);
+    ctx.send(reply).await?;
     Ok(())
 }
 
-#[group]
-#[commands(ping, version, reset, info)]
-struct General;
+pub fn create_framework(bot: Arc<Mutex<Bot>>) -> Result<impl Framework, serenity::Error> {
+    let data = Data { bot };
 
-#[group]
-#[owners_only]
-#[commands(shutdown)]
-struct Admin;
+    let framework = poise::Framework::builder()
+        .options(poise::FrameworkOptions {
+            commands: vec![
+                shutdown(),
+                version(),
+                ping(),
+                reset(),
+                info(),
+                help(),
+                default(),
+                about(),
+            ],
+            prefix_options: poise::PrefixFrameworkOptions {
+                prefix: Some("~".to_string()),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .setup(|ctx, _ready, framework| {
+            Box::pin(async move {
+                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+                Ok(data)
+            })
+        })
+        .build();
 
-#[group]
-#[commands(default, about)]
-struct Prompt;
+    Ok(framework)
+}

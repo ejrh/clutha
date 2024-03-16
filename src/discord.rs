@@ -1,12 +1,6 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 
-use serenity::all::standard::CommandResult;
-use serenity::all::{CreateEmbed, CreateMessage};
-use serenity::framework::standard::Configuration;
-use serenity::framework::{Framework, StandardFramework};
 use serenity::gateway::ShardManager;
-use serenity::http::Http;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
@@ -14,7 +8,7 @@ use serenity::{async_trait, Error};
 use tracing::{error, info};
 
 use crate::bot::Bot;
-use crate::commands::*;
+use crate::commands::create_framework;
 
 struct Handler;
 
@@ -24,10 +18,10 @@ impl TypeMapKey for ShardManagerContainer {
     type Value = Arc<ShardManager>;
 }
 
-pub(crate) struct BotContainer(Arc<Bot>);
+pub(crate) struct BotContainer(Arc<Mutex<Bot>>);
 
 impl TypeMapKey for BotContainer {
-    type Value = Bot;
+    type Value = Arc<Mutex<Bot>>;
 }
 
 #[async_trait]
@@ -44,6 +38,8 @@ impl EventHandler for Handler {
             return;
         };
 
+        let mut bot = bot.lock().await;
+
         match bot.handle_dialogue(&ctx, &msg).await {
             Ok(_) => (),
             Err(why) => {
@@ -57,23 +53,10 @@ impl EventHandler for Handler {
     }
 }
 
-pub(crate) async fn create_framework(token: &str) -> Result<StandardFramework, Error> {
-    let http = Http::new(token);
-    let info = http.get_current_application_info().await?;
-    let owners: HashSet<_> = info.owner.iter().map(|u| u.id).collect();
-
-    let framework = StandardFramework::new()
-        .group(&ADMIN_GROUP)
-        .group(&GENERAL_GROUP)
-        .group(&PROMPT_GROUP)
-        .help(&MY_HELP);
-    framework.configure(Configuration::new().owners(owners).prefix("~"));
-
-    Ok(framework)
-}
-
 pub(crate) async fn run_bot(bot: Bot, token: &str) -> Result<(), Error> {
-    let framework = create_framework(token).await?;
+    let bot = Arc::new(Mutex::new(bot));
+
+    let framework = create_framework(bot.clone())?;
 
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
@@ -95,9 +78,3 @@ pub(crate) async fn run_bot(bot: Bot, token: &str) -> Result<(), Error> {
     Ok(())
 }
 
-pub(crate) async fn system_message(ctx: &Context, msg: &Message, text: &str) -> CommandResult {
-    let mut embed = CreateEmbed::new().description(text);
-    let builder = CreateMessage::new().embed(embed);
-    msg.channel_id.send_message(&ctx.http, builder).await?;
-    Ok(())
-}
