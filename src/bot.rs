@@ -1,16 +1,20 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
-use itertools::Itertools;
 use serenity::all::standard::CommandResult;
-use serenity::all::{Context, Message};
+use serenity::all::{ChannelId, Context, Message};
+use tokio::sync::Mutex;
 
+use crate::channel::State;
 use crate::dialogue::{Dialogue, Part};
 use crate::gemini::Gemini;
 use crate::prompt::load_prompt;
 
 pub(crate) struct Bot {
     pub(crate) gemini: Gemini,
-    pub(crate) dialogue: Dialogue,
+    pub(crate) channels: RefCell<HashMap<ChannelId, Arc<Mutex<State>>>>,
 }
 
 impl Bot {
@@ -26,7 +30,9 @@ impl Bot {
         }
 
         let text = &msg.content;
-        self.dialogue.push("user", text);
+
+        let state = self.channel_state(msg.channel_id);
+        state.lock().await.process_user_text(text);
 
         println!("### {}", text);
 
@@ -36,12 +42,15 @@ impl Bot {
     }
 
     async fn do_ai_response(&mut self, ctx: &Context, msg: &Message) -> CommandResult {
+        let state = self.channel_state(msg.channel_id);
+        let mut state = state.lock().await;
+
         let typing = msg.channel_id.start_typing(&ctx.http);
 
-        let prompt = assemble_prompt(&self.dialogue);
+        let prompt = state.assemble_prompt();
         let result = self.gemini.generate_content(prompt).await?;
 
-        self.dialogue.push("model", &result);
+        state.process_model_text(&result);
 
         println!(">>> {}\n", result);
 
@@ -65,8 +74,10 @@ impl Bot {
         path.push(format!("{}.txt", prompt_name));
         let prompt = load_prompt(&path)?;
 
-        self.dialogue.append(&prompt.prompt);
-        self.dialogue.append(&prompt.initial);
+        let state = self.channel_state(ctx.channel_id());
+        let mut state = state.lock().await;
+        state.dialogue.append(&prompt.prompt);
+        state.dialogue.append(&prompt.initial);
 
         let x = prompt.initial.parts.iter().last();
         if let Some(Part { role, text }) = x {
@@ -77,15 +88,14 @@ impl Bot {
 
         Ok(())
     }
-}
 
-fn assemble_prompt(dialogue: &Dialogue) -> Vec<(String, String)> {
-    let mut prompt = Vec::new();
-    for (key, group) in dialogue.parts.iter().group_by(|p| &p.role).into_iter() {
-        let text = group.map(|p| &p.text).join("\n\n");
-        prompt.push((key.clone(), text));
+    pub(crate) fn channel_state(&self, channel_id: ChannelId) -> Arc<Mutex<State>> {
+        let mut channels = self.channels.borrow_mut();
+        channels.entry(channel_id)
+            .or_insert_with(|| Arc::new(Mutex::new(State {
+                dialogue: Dialogue::new(),
+            }))).clone()
     }
-    prompt
 }
 
 // This seems to be Discord's limit; make our limit slightly smaller to allow to overhead
@@ -99,25 +109,4 @@ fn prepare_response(result: String) -> Vec<String> {
 
     let groups = crate::dialogue::split_result(result, MAX_SEGMENT_SIZE);
     crate::dialogue::merge_groups(groups, MAX_SEGMENT_SIZE)
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_assemble_prompt() {
-        let mut dialogue = Dialogue::new();
-        dialogue.push("user", "ab");
-        dialogue.push("user", "cd");
-        dialogue.push("model", "ef");
-        dialogue.push("model", "gh");
-
-        let prompt = assemble_prompt(&dialogue);
-        let expected: Vec<(String, String)> = vec![
-            ("user".into(), "ab\n\ncd".into()),
-            ("model".into(), "ef\n\ngh".into()),
-        ];
-        assert_eq!(expected, prompt);
-    }
 }

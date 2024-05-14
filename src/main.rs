@@ -2,10 +2,10 @@ use std::process::ExitCode;
 use tracing::error;
 
 use crate::bot::Bot;
-use crate::dialogue::Dialogue;
 use crate::gemini::Gemini;
 
 mod bot;
+mod channel;
 mod commands;
 mod dialogue;
 mod discord;
@@ -26,8 +26,7 @@ fn main() -> ExitCode {
     };
 
     let gemini = Gemini::new(&api_key);
-    let dialogue = Dialogue::new();
-    let bot = Bot { gemini, dialogue };
+    let bot = Bot { gemini, channels: Default::default() };
 
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_io()

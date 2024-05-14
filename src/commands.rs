@@ -68,8 +68,9 @@ async fn ping(ctx: Context<'_>) -> CommandResult {
     category = "General"
 )]
 async fn reset(ctx: Context<'_>) -> CommandResult {
-    let mut bot = ctx.data().bot.lock().await;
-    bot.dialogue.reset();
+    let bot = ctx.data().bot.lock().await;
+    let state = bot.channel_state(ctx.channel_id());
+    state.lock().await.reset_dialogue();
 
     system_message(ctx, "Dialogue reset").await?;
 
@@ -82,6 +83,8 @@ async fn reset(ctx: Context<'_>) -> CommandResult {
 )]
 async fn info(ctx: Context<'_>) -> CommandResult {
     let bot = ctx.data().bot.lock().await;
+    let state = bot.channel_state(ctx.channel_id());
+    let state = state.lock().await;
 
     let mut context = MessageBuilder::new();
     if ctx.guild_id().is_none() {
@@ -110,7 +113,7 @@ async fn info(ctx: Context<'_>) -> CommandResult {
         .field("Prompt", prompt_str, true)
         .field(
             "Dialogue size",
-            format!("{} / {}", bot.dialogue.total_len, bot.dialogue.max_len),
+            format!("{} / {}", state.dialogue.total_len, state.dialogue.max_len),
             true,
         );
 
