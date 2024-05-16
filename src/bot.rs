@@ -7,7 +7,7 @@ use serenity::all::standard::CommandResult;
 use serenity::all::{ChannelId, Context, Message};
 use tokio::sync::Mutex;
 
-use crate::channel::State;
+use crate::channel::{Mode, State};
 use crate::dialogue::{Dialogue, Part};
 use crate::gemini::Gemini;
 use crate::prompt::load_prompt;
@@ -19,26 +19,29 @@ pub(crate) struct Bot {
 
 impl Bot {
     pub(crate) async fn handle_dialogue(&mut self, ctx: &Context, msg: &Message) -> CommandResult {
-        let channel_name = msg.channel_id.name(ctx).await?;
-        if channel_name != "chatter-bot" {
+        let state = self.channel_state(msg.channel_id);
+        let mut state = state.lock().await;
+        if !self.should_process(ctx, msg, &state) {
             return Ok(());
         }
 
-        let user_name = &msg.author.name;
-        if user_name == "Clutha" {
-            return Ok(());
-        }
 
         let text = &msg.content;
-
-        let state = self.channel_state(msg.channel_id);
-        state.lock().await.process_user_text(text);
-
+        state.process_user_text(text);
         println!("### {}", text);
 
-        self.do_ai_response(ctx, msg).await?;
+        // TODO - some mentions are mentioning the role of the same name, and it would be
+        //  nice to pick those up, too
+        let mentions_me = msg.mentions_me(ctx).await.unwrap_or(false);
 
-        Ok(())
+        if !self.should_respond(ctx, msg, &state, mentions_me) {
+            return Ok(())
+        }
+
+        // We have to drop the lock on state, as the next function will acquire it again
+        drop(state);
+
+        self.do_ai_response(ctx, msg).await
     }
 
     async fn do_ai_response(&mut self, ctx: &Context, msg: &Message) -> CommandResult {
@@ -62,6 +65,26 @@ impl Bot {
         typing.stop();
 
         Ok(())
+    }
+
+    fn should_process(&self, ctx: &Context, msg: &Message, state: &State) -> bool {
+        if msg.is_own(ctx) {
+            return false;
+        }
+
+        match state.mode {
+            Mode::Off => false,
+            _ => true
+        }
+    }
+
+    fn should_respond(&self, ctx: &Context, msg: &Message, state: &State, mentions_me: bool) -> bool {
+        match state.mode {
+            Mode::Off => false,
+            Mode::Lurking => false,
+            Mode::Passive => mentions_me,
+            Mode::Active => true,
+        }
     }
 
     pub(crate) async fn set_prompt(
@@ -93,6 +116,7 @@ impl Bot {
         let mut channels = self.channels.borrow_mut();
         channels.entry(channel_id)
             .or_insert_with(|| Arc::new(Mutex::new(State {
+                mode: Mode::Passive,
                 dialogue: Dialogue::new(),
             }))).clone()
     }

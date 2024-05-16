@@ -2,12 +2,13 @@ use std::sync::Arc;
 
 use poise::builtins::HelpConfiguration;
 use poise::{CreateReply, serenity_prelude as serenity};
-use serenity::all::{CreateEmbed, PartialGuild};
+use serenity::all::{CreateEmbed, InvalidToken, PartialGuild};
 use serenity::framework::Framework;
 use serenity::utils::MessageBuilder;
 use tokio::sync::Mutex;
 
 use crate::bot::Bot;
+use crate::channel::Mode;
 
 pub(crate) struct Data {
     bot: Arc<Mutex<Bot>>,
@@ -104,7 +105,7 @@ async fn info(ctx: Context<'_>) -> CommandResult {
             .push_bold_safe(&guild_name);
     };
 
-    let mode_str = "active";
+    let mode_str = format!("{:?}", state.mode);
     let prompt_str = "default";
 
     let embed = CreateEmbed::new()
@@ -119,6 +120,25 @@ async fn info(ctx: Context<'_>) -> CommandResult {
 
     let builder = CreateReply::default().embed(embed);
     ctx.send(builder).await?;
+
+    Ok(())
+}
+
+#[poise::command(
+    prefix_command,
+    category = "General",
+)]
+async fn mode(ctx: Context<'_>, mode: String) -> CommandResult {
+    let bot = ctx.data().bot.lock().await;
+    let state = bot.channel_state(ctx.channel_id());
+    let mut state = state.lock().await;
+
+    let new_mode: Mode = mode.as_str().try_into()
+        .map_err(|_| InvalidToken)?;
+
+    state.mode = new_mode;
+
+    system_message(ctx, format!("Mode set to *{new_mode:?}*").as_str()).await?;
 
     Ok(())
 }
@@ -192,6 +212,7 @@ pub fn create_framework(bot: Arc<Mutex<Bot>>) -> Result<impl Framework, serenity
                 ping(),
                 reset(),
                 info(),
+                mode(),
                 help(),
                 default(),
                 about(),
