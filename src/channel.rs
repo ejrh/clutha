@@ -6,11 +6,11 @@ use crate::dialogue::Dialogue;
 pub(crate) enum Mode {
     /// Ignores all non-command messages
     Off,
-    /// Reads but does not respond
-    Lurking,
-    /// Responds when mentioned
+    /// Reads and responds only when mentioned
     Passive,
-    /// Responds to all
+    /// Reads all but responds only when mentioned
+    Lurking,
+    /// Reads and responds to all
     Active,
 }
 

@@ -21,18 +21,18 @@ impl Bot {
     pub(crate) async fn handle_dialogue(&mut self, ctx: &Context, msg: &Message) -> CommandResult {
         let state = self.channel_state(msg.channel_id);
         let mut state = state.lock().await;
-        if !self.should_process(ctx, msg, &state) {
-            return Ok(());
-        }
-
-
-        let text = &msg.content;
-        state.process_user_text(text);
-        println!("### {}", text);
 
         // TODO - some mentions are mentioning the role of the same name, and it would be
         //  nice to pick those up, too
         let mentions_me = msg.mentions_me(ctx).await.unwrap_or(false);
+
+        if !self.should_process(ctx, msg, &state, mentions_me) {
+            return Ok(());
+        }
+
+        let text = &msg.content;
+        state.process_user_text(text);
+        println!("### {}", text);
 
         if !self.should_respond(ctx, msg, &state, mentions_me) {
             return Ok(())
@@ -67,22 +67,24 @@ impl Bot {
         Ok(())
     }
 
-    fn should_process(&self, ctx: &Context, msg: &Message, state: &State) -> bool {
+    fn should_process(&self, ctx: &Context, msg: &Message, state: &State, mentions_me: bool) -> bool {
         if msg.is_own(ctx) {
             return false;
         }
 
         match state.mode {
             Mode::Off => false,
-            _ => true
+            Mode::Passive => mentions_me,
+            Mode::Lurking => true,
+            Mode::Active => true,
         }
     }
 
     fn should_respond(&self, ctx: &Context, msg: &Message, state: &State, mentions_me: bool) -> bool {
         match state.mode {
             Mode::Off => false,
-            Mode::Lurking => false,
             Mode::Passive => mentions_me,
+            Mode::Lurking => mentions_me,
             Mode::Active => true,
         }
     }
