@@ -2,18 +2,20 @@ use std::collections::VecDeque;
 use std::io::BufRead;
 use std::mem::take;
 
+#[derive(Clone)]
 pub(crate) struct Part {
     pub(crate) role: String,
     pub(crate) text: String,
 }
 
+#[derive(Clone, Default)]
 pub(crate) struct Dialogue {
     pub(crate) parts: VecDeque<Part>,
     pub(crate) total_len: u64,
     pub(crate) max_len: u64,
 }
 
-const MAXIMUM_DIALOGUE_LEN: u64 = 1_000;
+pub(crate) const MAXIMUM_DIALOGUE_LEN: u64 = 1_000;
 
 impl Dialogue {
     pub(crate) fn new() -> Dialogue {

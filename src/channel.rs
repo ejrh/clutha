@@ -1,5 +1,6 @@
 use itertools::Itertools;
-use crate::dialogue::Dialogue;
+use crate::dialogue::{Dialogue, MAXIMUM_DIALOGUE_LEN};
+use crate::prompt::Prompt;
 
 /// Channel mode; when does the bot respond to messages in a channel
 #[derive(Clone, Copy, Debug)]
@@ -33,6 +34,7 @@ impl TryFrom<&str> for Mode {
 
 pub(crate) struct State {
     pub(crate) mode: Mode,
+    pub(crate) prompt: Prompt,
     pub(crate) dialogue: Dialogue,
 }
 
@@ -45,9 +47,16 @@ impl State {
         self.dialogue.push("model", text);
     }
 
+    pub(crate) fn set_prompt(&mut self, prompt: &Prompt) {
+        self.dialogue.max_len = MAXIMUM_DIALOGUE_LEN - prompt.prompt.total_len;
+        self.dialogue.append(&prompt.initial);
+        self.prompt = prompt.clone();
+    }
+
     pub(crate) fn assemble_prompt(&self) -> Vec<(String, String)> {
         let mut prompt = Vec::new();
-        for (key, group) in self.dialogue.parts.iter()
+        let combined_prompt = self.prompt.prompt.parts.iter().chain(self.dialogue.parts.iter());
+        for (key, group) in combined_prompt
                 .group_by(|p| &p.role).into_iter() {
             let text = group.map(|p| &p.text).join("\n\n");
             prompt.push((key.clone(), text));
@@ -66,7 +75,7 @@ mod test {
 
     #[test]
     fn test_assemble_prompt() {
-        let mut state = State { mode: Mode::Passive, dialogue: Dialogue::new() };
+        let mut state = State { mode: Mode::Passive, prompt: Prompt::default(), dialogue: Dialogue::new() };
         state.dialogue.push("user", "ab");
         state.dialogue.push("user", "cd");
         state.dialogue.push("model", "ef");

@@ -3,10 +3,11 @@ use std::path::Path;
 
 use crate::dialogue::{read_dialogue, Dialogue};
 
+#[derive(Clone, Default)]
 pub(crate) struct Prompt {
     pub(crate) prompt: Dialogue,
     pub(crate) initial: Dialogue,
-    filename: String,
+    pub(crate) filename: String,
 }
 
 pub(crate) fn load_prompt(path: impl AsRef<Path>) -> Result<Prompt, std::io::Error> {

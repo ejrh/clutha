@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 use crate::channel::{Mode, State};
 use crate::dialogue::{Dialogue, Part};
 use crate::gemini::Gemini;
-use crate::prompt::load_prompt;
+use crate::prompt::{load_prompt, Prompt};
 
 pub(crate) struct Bot {
     pub(crate) gemini: Gemini,
@@ -101,8 +101,8 @@ impl Bot {
 
         let state = self.channel_state(ctx.channel_id());
         let mut state = state.lock().await;
-        state.dialogue.append(&prompt.prompt);
-        state.dialogue.append(&prompt.initial);
+
+        state.set_prompt(&prompt);
 
         let x = prompt.initial.parts.iter().last();
         if let Some(Part { role, text }) = x {
@@ -117,10 +117,15 @@ impl Bot {
     pub(crate) fn channel_state(&self, channel_id: ChannelId) -> Arc<Mutex<State>> {
         let mut channels = self.channels.borrow_mut();
         channels.entry(channel_id)
-            .or_insert_with(|| Arc::new(Mutex::new(State {
-                mode: Mode::Passive,
-                dialogue: Dialogue::new(),
-            }))).clone()
+            .or_insert_with(|| Arc::new(Mutex::new(self.new_channel_state(channel_id)))).clone()
+    }
+
+    pub(crate) fn new_channel_state(&self, channel_id: ChannelId) -> State {
+        State {
+            mode: Mode::Passive,
+            prompt: Prompt::default(),
+            dialogue: Dialogue::new(),
+        }
     }
 }
 

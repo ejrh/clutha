@@ -106,12 +106,13 @@ async fn info(ctx: Context<'_>) -> CommandResult {
     };
 
     let mode_str = format!("{:?}", state.mode);
-    let prompt_str = "default";
+    let prompt_str = &state.prompt.filename;
 
     let embed = CreateEmbed::new()
         .description(context.build())
         .field("Mode", mode_str, true)
         .field("Prompt", prompt_str, true)
+        .field("Prompt size", format!("{}", state.prompt.prompt.total_len), true)
         .field(
             "Dialogue size",
             format!("{} / {}", state.dialogue.total_len, state.dialogue.max_len),
