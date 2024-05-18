@@ -171,6 +171,19 @@ async fn about(ctx: Context<'_>) -> CommandResult {
 
 #[poise::command(
     prefix_command,
+    category = "Prompt"
+)]
+async fn prompt(ctx: Context<'_>, prompt_name: String) -> CommandResult {
+    let mut bot = ctx.data().bot.lock().await;
+    bot.set_prompt(ctx, prompt_name.as_str()).await?;
+
+    system_message(ctx, format!("Prompt set to *{prompt_name}*").as_str()).await?;
+
+    Ok(())
+}
+
+#[poise::command(
+    prefix_command,
     category = "General"
 )]
 async fn help(
@@ -216,6 +229,7 @@ pub fn create_framework(bot: Arc<Mutex<Bot>>) -> Result<impl Framework, serenity
                 help(),
                 default(),
                 about(),
+                prompt(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("~".to_string()),
