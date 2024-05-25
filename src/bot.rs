@@ -1,10 +1,9 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use serenity::all::standard::CommandResult;
-use serenity::all::{ChannelId, Context, Message};
+use serenity::all::{CacheHttp, Channel, ChannelId, Context, Message};
 use tokio::sync::Mutex;
 
 use crate::channel::{Mode, State};
@@ -14,12 +13,12 @@ use crate::prompt::{load_prompt, Prompt};
 
 pub(crate) struct Bot {
     pub(crate) gemini: Gemini,
-    pub(crate) channels: RefCell<HashMap<ChannelId, Arc<Mutex<State>>>>,
+    pub(crate) channels: Arc<Mutex<HashMap<ChannelId, Arc<Mutex<State>>>>>,
 }
 
 impl Bot {
     pub(crate) async fn handle_dialogue(&mut self, ctx: &Context, msg: &Message) -> CommandResult {
-        let state = self.channel_state(msg.channel_id);
+        let state = self.channel_state(ctx, msg.channel_id).await?;
         let mut state = state.lock().await;
 
         // TODO - some mentions are mentioning the role of the same name, and it would be
@@ -45,7 +44,7 @@ impl Bot {
     }
 
     async fn do_ai_response(&mut self, ctx: &Context, msg: &Message) -> CommandResult {
-        let state = self.channel_state(msg.channel_id);
+        let state = self.channel_state(ctx, msg.channel_id).await?;
         let mut state = state.lock().await;
 
         let typing = msg.channel_id.start_typing(&ctx.http);
@@ -80,7 +79,7 @@ impl Bot {
         }
     }
 
-    fn should_respond(&self, ctx: &Context, msg: &Message, state: &State, mentions_me: bool) -> bool {
+    fn should_respond(&self, _ctx: &Context, _msg: &Message, state: &State, mentions_me: bool) -> bool {
         match state.mode {
             Mode::Off => false,
             Mode::Passive => mentions_me,
@@ -99,7 +98,7 @@ impl Bot {
         path.push(format!("{}.txt", prompt_name));
         let prompt = load_prompt(&path)?;
 
-        let state = self.channel_state(ctx.channel_id());
+        let state = self.channel_state(ctx, ctx.channel_id()).await?;
         let mut state = state.lock().await;
 
         state.set_prompt(&prompt);
@@ -114,18 +113,30 @@ impl Bot {
         Ok(())
     }
 
-    pub(crate) fn channel_state(&self, channel_id: ChannelId) -> Arc<Mutex<State>> {
-        let mut channels = self.channels.borrow_mut();
-        channels.entry(channel_id)
-            .or_insert_with(|| Arc::new(Mutex::new(self.new_channel_state(channel_id)))).clone()
+    pub(crate) async fn channel_state(&self, cache: impl CacheHttp, channel_id: ChannelId) -> serenity::Result<Arc<Mutex<State>>> {
+        let mut channels = self.channels.lock().await;
+        if let Some(channel) = channels.get(&channel_id) { return Ok(channel.clone()) };
+
+        let channel = self.new_channel_state(cache, channel_id).await?;
+        let channel = Arc::new(Mutex::new(channel));
+        channels.insert(channel_id, channel.clone());
+        Ok(channel)
     }
 
-    pub(crate) fn new_channel_state(&self, channel_id: ChannelId) -> State {
-        State {
-            mode: Mode::Passive,
+    pub(crate) async fn new_channel_state(&self, cache: impl CacheHttp, channel_id: ChannelId) -> serenity::Result<State> {
+        let channel = channel_id.to_channel(cache).await?;
+        let mode = match &channel {
+            Channel::Guild(gc) if gc.thread_metadata.is_none() => Mode::Active,
+            Channel::Guild(_) => Mode::Lurking,
+            Channel::Private(_) => Mode::Active,
+            _ => Mode::Passive,
+        };
+        dbg!(channel, mode);
+        Ok(State {
+            mode,
             prompt: Prompt::default(),
             dialogue: Dialogue::new(),
-        }
+        })
     }
 }
 

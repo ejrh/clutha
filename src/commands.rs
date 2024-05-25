@@ -70,7 +70,7 @@ async fn ping(ctx: Context<'_>) -> CommandResult {
 )]
 async fn reset(ctx: Context<'_>) -> CommandResult {
     let bot = ctx.data().bot.lock().await;
-    let state = bot.channel_state(ctx.channel_id());
+    let state = bot.channel_state(ctx, ctx.channel_id()).await?;
     state.lock().await.reset_dialogue();
 
     system_message(ctx, "Dialogue reset").await?;
@@ -84,7 +84,7 @@ async fn reset(ctx: Context<'_>) -> CommandResult {
 )]
 async fn info(ctx: Context<'_>) -> CommandResult {
     let bot = ctx.data().bot.lock().await;
-    let state = bot.channel_state(ctx.channel_id());
+    let state = bot.channel_state(ctx, ctx.channel_id()).await?;
     let state = state.lock().await;
 
     let mut context = MessageBuilder::new();
@@ -131,7 +131,7 @@ async fn info(ctx: Context<'_>) -> CommandResult {
 )]
 async fn mode(ctx: Context<'_>, mode: String) -> CommandResult {
     let bot = ctx.data().bot.lock().await;
-    let state = bot.channel_state(ctx.channel_id());
+    let state = bot.channel_state(ctx, ctx.channel_id()).await?;
     let mut state = state.lock().await;
 
     let new_mode: Mode = mode.as_str().try_into()
