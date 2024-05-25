@@ -131,12 +131,14 @@ impl Bot {
             Channel::Private(_) => Mode::Active,
             _ => Mode::Passive,
         };
-        dbg!(channel, mode);
-        Ok(State {
+        let prompt = load_prompt("prompts/default.txt")?;
+        let mut state = State {
             mode,
             prompt: Prompt::default(),
             dialogue: Dialogue::new(),
-        })
+        };
+        state.set_prompt(&prompt);
+        Ok(state)
     }
 }
 
