@@ -7,8 +7,9 @@ use tracing::error;
 
 use crate::gemini::model::*;
 
-const BASE_URL: &str =
-    "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent";
+const BASE_URL: &str = "https://generativelanguage.googleapis.com/v1";
+const DEFAULT_MODEL: &str = "models/gemini-2.5-flash";
+const GENERATE_METHOD: &str = "generateContent";
 
 #[derive(Debug)]
 pub enum Error {
@@ -41,12 +42,14 @@ impl From<serde_json::Error> for Error {
 
 pub struct Gemini {
     api_key: String,
+    model: String,
 }
 
 impl Gemini {
     pub(crate) fn new(api_key: &str) -> Self {
         Gemini {
             api_key: api_key.to_string(),
+            model: DEFAULT_MODEL.to_string(),
         }
     }
 
@@ -56,7 +59,7 @@ impl Gemini {
     ) -> Result<String, Error> {
         let client = reqwest::Client::new();
 
-        let full_url = format!("{}?key={}", BASE_URL, self.api_key);
+        let full_url = format!("{}/{}:{}?key={}", BASE_URL, self.model, GENERATE_METHOD, self.api_key);
 
         let request = build_request(prompt);
 
