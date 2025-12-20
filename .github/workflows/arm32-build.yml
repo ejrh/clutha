@@ -1,0 +1,44 @@
+name: arm-unknown-linux-gnueabihf build
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "arm32-build"
+
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Install deps
+        run: sudo apt install libssl-dev
+
+      - name: Build
+        run: cross build --release --target arm-unknown-linux-gnueabihf
+
+      - name: Assemble artifact
+        run: |
+          mkdir artifact
+          cp target/arm-unknown-linux-gnueabihf/release/clutha artifact
+          cp -R prompts artifact
+          cp README.md artifact
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clutha
+          path: artifact
