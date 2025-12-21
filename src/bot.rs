@@ -6,13 +6,13 @@ use serenity::all::standard::CommandResult;
 use serenity::all::{CacheHttp, Channel, ChannelId, Context, Message};
 use tokio::sync::Mutex;
 
+use crate::backend::Backend;
 use crate::channel::{Mode, State};
 use crate::dialogue::{Dialogue, Part};
-use crate::gemini::Gemini;
 use crate::prompt::{load_prompt, Prompt};
 
 pub(crate) struct Bot {
-    pub(crate) gemini: Gemini,
+    pub(crate) backend: Box<dyn Backend>,
     pub(crate) channels: Arc<Mutex<HashMap<ChannelId, Arc<Mutex<State>>>>>,
 }
 
@@ -50,7 +50,7 @@ impl Bot {
         let typing = msg.channel_id.start_typing(&ctx.http);
 
         let prompt = state.assemble_prompt();
-        let result = self.gemini.generate_content(prompt).await?;
+        let result = self.backend.generate_content(prompt).await?;
 
         state.process_model_text(&result);
 

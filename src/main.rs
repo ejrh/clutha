@@ -1,15 +1,15 @@
 use std::process::ExitCode;
 use tracing::error;
-
+use crate::backend::chatgpt::ChatGpt;
 use crate::bot::Bot;
-use crate::gemini::Gemini;
+use crate::backend::gemini::Gemini;
 
+mod backend;
 mod bot;
 mod channel;
 mod commands;
 mod dialogue;
 mod discord;
-mod gemini;
 mod prompt;
 
 fn main() -> ExitCode {
@@ -25,8 +25,15 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     };
 
+    // let Ok(api_key) = std::env::var("CHATGPT_API_KEY") else {
+    //     error!("CHATGPT_API_KEY not set in environment");
+    //     return ExitCode::FAILURE;
+    // };
+    // let chatgpt = ChatGpt::new(&api_key);
+
     let gemini = Gemini::new(&api_key);
-    let bot = Bot { gemini, channels: Default::default() };
+    let backend = Box::new(gemini);
+    let bot = Bot { backend, channels: Default::default() };
 
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_io()

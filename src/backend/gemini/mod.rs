@@ -1,44 +1,16 @@
 mod model;
 
 use std::fmt::{Debug, Display, Formatter};
-
+use async_trait::async_trait;
 use reqwest::StatusCode;
 use tracing::error;
 
-use crate::gemini::model::*;
+use crate::backend::{Backend, Error};
+use crate::backend::gemini::model::*;
 
 const BASE_URL: &str = "https://generativelanguage.googleapis.com/v1";
 const DEFAULT_MODEL: &str = "models/gemini-2.5-flash-lite";
 const GENERATE_METHOD: &str = "generateContent";
-
-#[derive(Debug)]
-pub enum Error {
-    Reqwest(reqwest::Error),
-    SerdeJson(serde_json::Error),
-    HttpStatus(StatusCode),
-    BadRequest,
-    BadResponse,
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-impl std::error::Error for Error {}
-
-impl From<reqwest::Error> for Error {
-    fn from(value: reqwest::Error) -> Self {
-        Error::Reqwest(value)
-    }
-}
-
-impl From<serde_json::Error> for Error {
-    fn from(value: serde_json::Error) -> Self {
-        Error::SerdeJson(value)
-    }
-}
 
 pub struct Gemini {
     api_key: String,
@@ -52,8 +24,11 @@ impl Gemini {
             model: DEFAULT_MODEL.to_string(),
         }
     }
+}
 
-    pub(crate) async fn generate_content(
+#[async_trait]
+impl Backend for Gemini {
+    async fn generate_content(
         &self,
         prompt: Vec<(String, String)>,
     ) -> Result<String, Error> {
