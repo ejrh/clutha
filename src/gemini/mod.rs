@@ -8,7 +8,7 @@ use tracing::error;
 use crate::gemini::model::*;
 
 const BASE_URL: &str = "https://generativelanguage.googleapis.com/v1";
-const DEFAULT_MODEL: &str = "models/gemini-2.5-flash";
+const DEFAULT_MODEL: &str = "models/gemini-2.5-flash-lite";
 const GENERATE_METHOD: &str = "generateContent";
 
 #[derive(Debug)]
@@ -82,6 +82,9 @@ impl Gemini {
             return Err(Error::HttpStatus(status));
         }
 
+        // println!("REQUEST\n{}", request_str);
+        // println!("RESPONSE\n{}", text);
+
         let Ok(response) = serde_json::from_str::<GenerateContentResponse>(&text) else {
             error!("Bad response JSON: {}", text);
             return Err(Error::BadResponse);
@@ -105,7 +108,15 @@ fn build_request(prompt: Vec<(String, String)>) -> GenerateContentRequest {
         contents.push(content);
     }
 
-    GenerateContentRequest { contents }
+    let safety_settings = vec![
+        // HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+        // HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+        // HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+        // HarmCategory.HARM_CATEGORY_HARASSMENT,
+        // HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY,
+    ];
+
+    GenerateContentRequest { contents, safety_settings }
 }
 
 #[cfg(test)]
