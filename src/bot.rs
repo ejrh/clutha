@@ -50,7 +50,13 @@ impl Bot {
         let typing = msg.channel_id.start_typing(&ctx.http);
 
         let prompt = state.assemble_prompt();
-        let result = self.backend.generate_content(prompt).await?;
+        let result = match self.backend.generate_content(prompt).await {
+            Ok(result) => result,
+            Err(err) => {
+                msg.channel_id.say(&ctx, format!("Error: {err:?}")).await?;
+                return Err(err.into());
+            }
+        };
 
         state.process_model_text(&result);
 
