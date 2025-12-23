@@ -34,7 +34,7 @@ impl Backend for Gemini {
     ) -> Result<String, Error> {
         let client = reqwest::Client::new();
 
-        let full_url = format!("{}/{}:{}?key={}", BASE_URL, self.model, GENERATE_METHOD, self.api_key);
+        let full_url = format!("{}/{}:{}", BASE_URL, self.model, GENERATE_METHOD);
 
         let request = build_request(prompt);
 
@@ -45,6 +45,8 @@ impl Backend for Gemini {
 
         let response = client
             .post(full_url)
+            .header("Content-Type", "application/json")
+            .header("x-goog-api-key", self.api_key.clone())
             .body(request_str.clone())
             .send()
             .await?;
