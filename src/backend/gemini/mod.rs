@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use reqwest::StatusCode;
 use tracing::error;
 
-use crate::backend::{Backend, Error};
+use crate::backend::{get_client, map_client_error, Backend, Error};
 use crate::backend::gemini::model::*;
 
 const BASE_URL: &str = "https://generativelanguage.googleapis.com/v1";
@@ -32,7 +32,7 @@ impl Backend for Gemini {
         &self,
         prompt: Vec<(String, String)>,
     ) -> Result<String, Error> {
-        let client = reqwest::Client::new();
+        let client = get_client();
 
         let full_url = format!("{}/{}:{}", BASE_URL, self.model, GENERATE_METHOD);
 
@@ -49,7 +49,8 @@ impl Backend for Gemini {
             .header("x-goog-api-key", self.api_key.clone())
             .body(request_str.clone())
             .send()
-            .await?;
+            .await
+            .map_err(map_client_error)?;
         let status = response.status();
         let text = response.text().await?;
 
