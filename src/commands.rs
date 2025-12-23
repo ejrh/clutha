@@ -1,3 +1,4 @@
+use std::mem::needs_drop;
 use std::sync::Arc;
 
 use poise::builtins::HelpConfiguration;
@@ -144,17 +145,25 @@ async fn mode(ctx: Context<'_>, mode: String) -> CommandResult {
     Ok(())
 }
 
+async fn prompt_command(ctx: Context<'_>, prompt_name: String) -> CommandResult {
+    let mut bot = ctx.data().bot.lock().await;
+    let needs_response = bot.set_prompt(ctx.serenity_context(), ctx.channel_id(), prompt_name.as_str()).await?;
+
+    system_message(ctx, format!("Prompt set to *{prompt_name}*").as_str()).await?;
+
+    if needs_response {
+        bot.do_ai_response(ctx.serenity_context(), ctx.channel_id()).await?;
+    }
+
+    Ok(())
+}
+
 #[poise::command(
     prefix_command,
     category = "Prompt"
 )]
 async fn default(ctx: Context<'_>) -> CommandResult {
-    let mut bot = ctx.data().bot.lock().await;
-    bot.set_prompt(ctx, "default").await?;
-
-    system_message(ctx, "Prompt set to *default*").await?;
-
-    Ok(())
+    prompt_command(ctx, "default".to_string()).await
 }
 
 #[poise::command(
@@ -162,12 +171,7 @@ async fn default(ctx: Context<'_>) -> CommandResult {
     category = "Prompt"
 )]
 async fn about(ctx: Context<'_>) -> CommandResult {
-    let mut bot = ctx.data().bot.lock().await;
-    bot.set_prompt(ctx, "about").await?;
-
-    system_message(ctx, "Prompt set to *about*").await?;
-
-    Ok(())
+    prompt_command(ctx, "about".to_string()).await
 }
 
 #[poise::command(
@@ -175,12 +179,7 @@ async fn about(ctx: Context<'_>) -> CommandResult {
     category = "Prompt"
 )]
 async fn prompt(ctx: Context<'_>, prompt_name: String) -> CommandResult {
-    let mut bot = ctx.data().bot.lock().await;
-    bot.set_prompt(ctx, prompt_name.as_str()).await?;
-
-    system_message(ctx, format!("Prompt set to *{prompt_name}*").as_str()).await?;
-
-    Ok(())
+    prompt_command(ctx, prompt_name).await
 }
 
 #[poise::command(

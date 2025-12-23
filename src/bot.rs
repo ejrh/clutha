@@ -40,20 +40,20 @@ impl Bot {
         // We have to drop the lock on state, as the next function will acquire it again
         drop(state);
 
-        self.do_ai_response(ctx, msg).await
+        self.do_ai_response(ctx, msg.channel_id).await
     }
 
-    async fn do_ai_response(&mut self, ctx: &Context, msg: &Message) -> CommandResult {
-        let state = self.channel_state(ctx, msg.channel_id).await?;
+    pub async fn do_ai_response(&mut self, ctx: &Context, channel_id: ChannelId) -> CommandResult {
+        let state = self.channel_state(ctx, channel_id).await?;
         let mut state = state.lock().await;
 
-        let typing = msg.channel_id.start_typing(&ctx.http);
+        let typing = channel_id.start_typing(&ctx.http);
 
         let prompt = state.assemble_prompt();
         let result = match self.backend.generate_content(prompt).await {
             Ok(result) => result,
             Err(err) => {
-                msg.channel_id.say(&ctx, format!("Error: {err:?}")).await?;
+                channel_id.say(&ctx, format!("Error: {err:?}")).await?;
                 return Err(err.into());
             }
         };
@@ -64,7 +64,7 @@ impl Bot {
 
         let result_segments = prepare_response(result);
         for segment in result_segments {
-            msg.channel_id.say(&ctx, segment).await?;
+            channel_id.say(&ctx, segment).await?;
         }
 
         typing.stop();
@@ -96,27 +96,27 @@ impl Bot {
 
     pub(crate) async fn set_prompt(
         &mut self,
-        ctx: crate::commands::Context<'_>,
+        ctx: &Context,
+        channel_id: ChannelId,
         prompt_name: &str,
-    ) -> CommandResult {
+    ) -> CommandResult<bool> {
         let mut path = PathBuf::new();
         path.push("prompts/");
         path.push(format!("{}.txt", prompt_name));
         let prompt = load_prompt(&path)?;
 
-        let state = self.channel_state(ctx, ctx.channel_id()).await?;
+        let state = self.channel_state(ctx, channel_id).await?;
         let mut state = state.lock().await;
 
         state.set_prompt(&prompt);
 
-        let x = prompt.initial.parts.iter().last();
-        if let Some(Part { role, text }) = x {
-            if role == "model" {
-                ctx.channel_id().say(&ctx, text).await?;
-            }
-        }
+        /* Check if the last item in the prompt was from the user */
+        let needs_response = match prompt.initial.parts.iter().last() {
+            Some(Part { role, text }) => role == "user",
+            None => false,
+        };
 
-        Ok(())
+        Ok(needs_response)
     }
 
     pub(crate) async fn channel_state(&self, cache: impl CacheHttp, channel_id: ChannelId) -> serenity::Result<Arc<Mutex<State>>> {

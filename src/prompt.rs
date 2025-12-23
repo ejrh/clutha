@@ -35,6 +35,6 @@ mod test {
 
         assert_eq!("prompts/about.txt", p.filename);
         assert_eq!(304, p.prompt.total_len);
-        assert_eq!(3, p.initial.total_len);
+        assert_eq!(2, p.initial.total_len);
     }
 }
