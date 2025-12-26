@@ -152,7 +152,7 @@ async fn prompt_command(ctx: Context<'_>, prompt_name: String) -> CommandResult 
     system_message(ctx, format!("Prompt set to *{prompt_name}*").as_str()).await?;
 
     if needs_response {
-        bot.do_ai_response(ctx.serenity_context(), ctx.channel_id()).await?;
+        bot.do_ai_response(ctx.serenity_context(), ctx.channel_id(), None).await?;
     }
 
     Ok(())

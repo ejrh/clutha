@@ -3,8 +3,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use serenity::all::standard::CommandResult;
-use serenity::all::{CacheHttp, Channel, ChannelId, Context, Message};
+use serenity::all::{CacheHttp, Channel, ChannelId, ChannelType, Context, Message, MessageId};
+use serenity::builder::CreateThread;
 use tokio::sync::Mutex;
+use tracing::info;
 
 use crate::backend::Backend;
 use crate::channel::{Mode, State};
@@ -40,10 +42,10 @@ impl Bot {
         // We have to drop the lock on state, as the next function will acquire it again
         drop(state);
 
-        self.do_ai_response(ctx, msg.channel_id).await
+        self.do_ai_response(ctx, msg.channel_id, Some(&msg)).await
     }
 
-    pub async fn do_ai_response(&mut self, ctx: &Context, channel_id: ChannelId) -> CommandResult {
+    pub async fn do_ai_response(&mut self, ctx: &Context, channel_id: ChannelId, original_msg: Option<&Message>) -> CommandResult {
         let state = self.channel_state(ctx, channel_id).await?;
         let mut state = state.lock().await;
 
@@ -58,13 +60,42 @@ impl Bot {
             }
         };
 
-        state.process_model_text(&result);
+        let result_segments = prepare_response(&result);
+        let mut dest_channel = channel_id;
+
+        /* If the response length is large, put the response in a thread */
+        let is_thread = matches!(
+            channel_id.to_channel(ctx).await?.guild().map(|g| g.kind),
+            Some(ChannelType::PublicThread | ChannelType::PrivateThread)
+        );
+        let total_len = result_segments.iter().map(|s| s.len()).sum::<usize>();
+        let create_thread = !is_thread && total_len > 200 && original_msg.is_some();
+
+        if create_thread {
+            info!("creating thread");
+            let msg = original_msg.unwrap();
+            let mut first_line = result_segments[0].replace('\n', " ");
+            //TODO truncate could panic if there is a multibyte character
+            first_line.truncate(100);
+            let r = channel_id.create_thread_from_message(ctx, msg.id, CreateThread::new(first_line)).await?;
+            let thread_id = r.id;
+
+            /* Create a new state for the thread, based on the channel state */
+            let state2 = self.channel_state(ctx, thread_id).await?;
+            let mut state2 = state2.lock().await;
+            //state2.clone_from(state);
+            state2.mode = Mode::Active;
+
+            state2.process_model_text(&result);
+            dest_channel = r.id;
+        } else {
+            state.process_model_text(&result);
+        }
 
         println!(">>> {}\n", result);
 
-        let result_segments = prepare_response(result);
         for segment in result_segments {
-            channel_id.say(&ctx, segment).await?;
+            dest_channel.say(&ctx, segment).await?;
         }
 
         typing.stop();
@@ -152,9 +183,9 @@ impl Bot {
 const DISCORD_MAX_SEGMENT_SIZE: usize = 2000;
 const MAX_SEGMENT_SIZE: usize = DISCORD_MAX_SEGMENT_SIZE - 100;
 
-fn prepare_response(result: String) -> Vec<String> {
+fn prepare_response(result: &str) -> Vec<String> {
     if result.len() < MAX_SEGMENT_SIZE {
-        return vec![result];
+        return vec![result.to_string()];
     }
 
     let groups = crate::dialogue::split_result(result, MAX_SEGMENT_SIZE);

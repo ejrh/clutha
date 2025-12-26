@@ -65,7 +65,7 @@ impl Part {
     }
 }
 
-pub(crate) fn split_result(result: String, max_size: usize) -> Vec<String> {
+pub(crate) fn split_result(result: &str, max_size: usize) -> Vec<String> {
     /* Specific lines of the input are identified as split points:
         - Blank lines (outside of code blocks, and not following headings).
         - Code block lines starting ```; included with following group or current group
@@ -159,7 +159,7 @@ pub(crate) fn read_dialogue(f: &mut impl BufRead) -> Result<Dialogue, std::io::E
         dialogue_text.push_str(&buf);
     }
 
-    for text in split_result(dialogue_text, 10000) {
+    for text in split_result(&dialogue_text, 10000) {
         let (role, text) = if text.starts_with('>') {
             ("user", &text[2..])
         } else {
@@ -195,31 +195,31 @@ mod test {
 
     #[test]
     fn test_split_result() {
-        let input = "".to_string();
+        let input = "";
         let segments = split_result(input, 0);
         assert_eq!(0, segments.len());
 
-        let input = "one line\n\n".to_string();
+        let input = "one line\n\n";
         let segments = split_result(input, 0);
         assert_eq!(vec!["one line\n\n"], segments);
 
-        let input = "one\nsegment".to_string();
+        let input = "one\nsegment";
         let segments = split_result(input, 0);
         assert_eq!(vec!["one\nsegment\n"], segments);
 
-        let input = "now\ntwo\n\nsegments".to_string();
+        let input = "now\ntwo\n\nsegments";
         let segments = split_result(input, 0);
         assert_eq!(vec!["now\ntwo\n\n", "segments\n"], segments);
 
-        let input = "line 1\n\n* heading *\n\nline 2".to_string();
+        let input = "line 1\n\n* heading *\n\nline 2";
         let segments = split_result(input, 0);
         assert_eq!(vec!["line 1\n\n", "* heading *\n\nline 2\n"], segments);
 
-        let input = "* bullet point\n\ntext".to_string();
+        let input = "* bullet point\n\ntext";
         let segments = split_result(input, 0);
         assert_eq!(vec!["* bullet point\n\n", "text\n"], segments);
 
-        let input = "text\n```rust\nsome\n\ncode\n\nhere\n```\nmore text".to_string();
+        let input = "text\n```rust\nsome\n\ncode\n\nhere\n```\nmore text";
         let segments = split_result(input, 0);
         assert_eq!(
             vec![
