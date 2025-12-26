@@ -32,6 +32,7 @@ impl TryFrom<&str> for Mode {
     }
 }
 
+#[derive(Clone, Debug)]
 pub(crate) struct State {
     pub(crate) mode: Mode,
     pub(crate) prompt: Prompt,

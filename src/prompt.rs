@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::dialogue::{read_dialogue, Dialogue};
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct Prompt {
     pub(crate) prompt: Dialogue,
     pub(crate) initial: Dialogue,

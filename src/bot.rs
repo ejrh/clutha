@@ -81,7 +81,9 @@ impl Bot {
             /* Create a new state for the thread, based on the channel state */
             let state2 = self.channel_state(ctx, thread_id).await?;
             let mut state2 = state2.lock().await;
-            //state2.clone_from(state);
+
+            /* Copy the current state, but set the mode to active */
+            state2.clone_from(&state);
             state2.mode = Mode::Active;
 
             state2.process_model_text(&result);
