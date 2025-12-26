@@ -72,12 +72,10 @@ impl Bot {
         let create_thread = !is_thread && total_len > 200 && original_msg.is_some();
 
         if create_thread {
-            info!("creating thread");
-            let msg = original_msg.unwrap();
-            let mut first_line = result_segments[0].replace('\n', " ");
-            //TODO truncate could panic if there is a multibyte character
-            first_line.truncate(100);
-            let r = channel_id.create_thread_from_message(ctx, msg.id, CreateThread::new(first_line)).await?;
+            let thread_name = self.suggest_thread_name(&state.dialogue).await?;
+            info!("Creating thread: {thread_name}");
+
+            let r = channel_id.create_thread_from_message(ctx, original_msg.unwrap().id, CreateThread::new(thread_name)).await?;
             let thread_id = r.id;
 
             /* Create a new state for the thread, based on the channel state */
@@ -123,6 +121,26 @@ impl Bot {
             Mode::Lurking => mentions_me,
             Mode::Active => true,
         }
+    }
+
+    async fn suggest_thread_name(&self, dialogue: &Dialogue) -> CommandResult<String> {
+        //TODO this is pretty ugly
+        let mut request_prompt = Dialogue::new();
+        request_prompt.push("user", "Suggest a Discord thread name from the following discussion.\
+        Print a single suggestion with no extra text, less than 100 characters.\
+        This should be noun-phrase, not a full sentence.");
+        let request_state = State {
+            mode: Mode::Off,
+            prompt: Prompt { prompt: request_prompt, initial: Dialogue::new(), filename: String::new() },
+            dialogue: dialogue.clone(),
+        };
+        let result = self.backend.generate_content(request_state.assemble_prompt()).await?;
+
+        let mut thread_name = result.replace('\n', " ");
+        //TODO truncate could panic if there is a multibyte character
+        thread_name.truncate(100);
+
+        Ok(thread_name)
     }
 
     pub(crate) async fn set_prompt(

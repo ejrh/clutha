@@ -2,13 +2,20 @@ use std::collections::VecDeque;
 use std::io::BufRead;
 use std::mem::take;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
+#[allow(dead_code)]
+pub(crate) enum Role {
+    User,
+    Model,
+}
+
+#[derive(Clone, Debug)]
 pub(crate) struct Part {
     pub(crate) role: String,
     pub(crate) text: String,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct Dialogue {
     pub(crate) parts: VecDeque<Part>,
     pub(crate) total_len: u64,
