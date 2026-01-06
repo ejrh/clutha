@@ -12,6 +12,7 @@ use crate::backend::Backend;
 use crate::channel::{Mode, State};
 use crate::commands::Command;
 use crate::dialogue::{Dialogue, Part};
+use crate::discord::system_error;
 use crate::prompt::{load_prompt, Prompt};
 
 pub(crate) struct Bot {
@@ -56,6 +57,9 @@ impl Bot {
         let prompt = state.assemble_prompt();
         let result = self.backend.generate_content(prompt).await?;
 
+        /* Always process the response in this channel, even if we decide to put it in a thread */
+        state.process_model_text(&result);
+
         let result_segments = prepare_response(&result);
         let mut dest_channel = channel_id;
 
@@ -68,7 +72,13 @@ impl Bot {
         let create_thread = !is_thread && total_len > 200 && original_msg.is_some();
 
         if create_thread {
-            let thread_name = self.suggest_thread_name(&state.dialogue).await?;
+            let thread_name = match self.suggest_thread_name(&result).await {
+                Ok(name) => name,
+                Err(err) => {
+                    system_error(ctx, channel_id, &format!("Thread name could not be generated: {:?}", err)).await;
+                    "???".to_string()
+                }
+            };
             info!("Creating thread: {thread_name}");
 
             let r = channel_id.create_thread_from_message(ctx, original_msg.unwrap().id, CreateThread::new(thread_name)).await?;
@@ -82,10 +92,7 @@ impl Bot {
             state2.clone_from(&state);
             state2.mode = Mode::Active;
 
-            state2.process_model_text(&result);
             dest_channel = r.id;
-        } else {
-            state.process_model_text(&result);
         }
 
         println!(">>> {}\n", result);
@@ -121,18 +128,14 @@ impl Bot {
         }
     }
 
-    async fn suggest_thread_name(&self, dialogue: &Dialogue) -> CommandResult<String> {
-        //TODO this is pretty ugly
-        let mut request_prompt = Dialogue::new();
-        request_prompt.push("user", "Suggest a Discord thread name from the following discussion.\
-        Print a single suggestion with no extra text, less than 100 characters.\
-        This should be noun-phrase, not a full sentence.");
-        let request_state = State {
-            mode: Mode::Off,
-            prompt: Prompt { prompt: request_prompt, initial: Dialogue::new(), filename: String::new() },
-            dialogue: dialogue.clone(),
-        };
-        let result = self.backend.generate_content(request_state.assemble_prompt()).await?;
+    async fn suggest_thread_name(&self, text: &str) -> CommandResult<String> {
+        let request_prompt = vec![
+            ("model".to_string(), text.to_string()),
+            ("user".to_string(), "Suggest a Discord thread name from the previous response.\
+Print a single suggestion with no extra text, less than 100 characters.\
+This should be noun-phrase, not a full sentence.".to_string())
+            ];
+        let result = self.backend.generate_content(request_prompt).await?;
 
         let mut thread_name = result.replace('\n', " ");
         //TODO truncate could panic if there is a multibyte character

@@ -7,6 +7,7 @@ pub(crate) struct Part {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Content {
+    #[serde(default)]
     pub(crate) parts: Vec<Part>,
     pub(crate) role: String,
 }

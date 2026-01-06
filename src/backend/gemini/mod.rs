@@ -52,6 +52,7 @@ impl Backend for Gemini {
             .await
             .map_err(map_client_error)?;
         let status = response.status();
+        let headers = response.headers().clone();
         let text = response.text().await?;
 
         if !status.is_success() {
@@ -61,14 +62,25 @@ impl Backend for Gemini {
         }
 
         // println!("REQUEST\n{}", request_str);
+        // println!("STATUS\n{:?}", status);
+        // println!("HEADERS\n{:?}", headers);
         // println!("RESPONSE\n{}", text);
 
-        let Ok(response) = serde_json::from_str::<GenerateContentResponse>(&text) else {
+        let response = serde_json::from_str::<GenerateContentResponse>(&text)
+            .map_err(|err| {
             error!("Bad response JSON: {}", text);
-            return Err(Error::BadResponse);
-        };
+            error!("Error was: {}", err);
+            Error::BadResponse
+        })?;
 
-        let text = response.candidates[0].content.parts[0].text.clone();
+        let text = response.candidates.get(0)
+            .and_then(|c| c.content.parts.get(0))
+            .map(|p| p.text.clone())
+            .ok_or_else(|| {
+                error!("Bad response JSON: {}", text);
+                error!("No response text");
+                Error::BadResponse
+        })?;
 
         Ok(text)
     }
