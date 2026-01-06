@@ -1,8 +1,9 @@
 use std::process::ExitCode;
 use tracing::error;
-use crate::backend::chatgpt::ChatGpt;
+
 use crate::bot::Bot;
 use crate::backend::gemini::Gemini;
+use crate::commands::commands;
 
 mod backend;
 mod bot;
@@ -33,8 +34,9 @@ fn main() -> ExitCode {
 
     let gemini = Gemini::new(&api_key);
     let backend = Box::new(gemini);
-    let bot = Bot { backend, channels: Default::default() };
-
+    let commands = commands();
+    let bot = Bot { backend, channels: Default::default(), commands };
+    
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_io()
         .enable_time()

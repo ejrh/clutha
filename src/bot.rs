@@ -10,12 +10,14 @@ use tracing::info;
 
 use crate::backend::Backend;
 use crate::channel::{Mode, State};
+use crate::commands::Command;
 use crate::dialogue::{Dialogue, Part};
 use crate::prompt::{load_prompt, Prompt};
 
 pub(crate) struct Bot {
     pub(crate) backend: Box<dyn Backend>,
     pub(crate) channels: Arc<Mutex<HashMap<ChannelId, Arc<Mutex<State>>>>>,
+    pub(crate) commands: HashMap<String, Command>,
 }
 
 impl Bot {
@@ -45,20 +47,14 @@ impl Bot {
         self.do_ai_response(ctx, msg.channel_id, Some(&msg)).await
     }
 
-    pub async fn do_ai_response(&mut self, ctx: &Context, channel_id: ChannelId, original_msg: Option<&Message>) -> CommandResult {
+    pub async fn do_ai_response(&self, ctx: &Context, channel_id: ChannelId, original_msg: Option<&Message>) -> CommandResult {
         let state = self.channel_state(ctx, channel_id).await?;
         let mut state = state.lock().await;
 
         let typing = channel_id.start_typing(&ctx.http);
 
         let prompt = state.assemble_prompt();
-        let result = match self.backend.generate_content(prompt).await {
-            Ok(result) => result,
-            Err(err) => {
-                channel_id.say(&ctx, format!("Error: {err:?}")).await?;
-                return Err(err.into());
-            }
-        };
+        let result = self.backend.generate_content(prompt).await?;
 
         let result_segments = prepare_response(&result);
         let mut dest_channel = channel_id;
@@ -146,7 +142,7 @@ impl Bot {
     }
 
     pub(crate) async fn set_prompt(
-        &mut self,
+        &self,
         ctx: &Context,
         channel_id: ChannelId,
         prompt_name: &str,
